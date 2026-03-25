@@ -333,7 +333,8 @@ class AppDatabase {
     final db = await database;
     final start = DateTime(date.year, date.month, date.day)
         .millisecondsSinceEpoch;
-    final end = DateTime(date.year, date.month, date.day + 1)
+    final end = DateTime(date.year, date.month, date.day)
+        .add(const Duration(days: 1))
         .millisecondsSinceEpoch;
     final maps = await db.query(
       'orders',

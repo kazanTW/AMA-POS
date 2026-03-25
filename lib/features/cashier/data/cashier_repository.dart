@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/db/models.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 final cashierRepositoryProvider = Provider<CashierRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
@@ -30,8 +31,7 @@ class CashierRepository {
     final now = DateTime.now();
     final todayOrders = await _db.getPaidOrdersByDate(now);
     final seq = todayOrders.length + 1;
-    final orderNo =
-        '${now.year.toString().padLeft(4, '0')}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${seq.toString().padLeft(4, '0')}';
+    final orderNo = generateOrderNo(now, seq);
 
     final openShift = await _db.getOpenShift();
 
