@@ -110,7 +110,7 @@ class ProductsPage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<int?>(
+                DropdownButton<int?>(
                   value: selectedCatId,
                   decoration:
                       const InputDecoration(labelText: '分類'),

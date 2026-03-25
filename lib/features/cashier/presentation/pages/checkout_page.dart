@@ -221,9 +221,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           orderId: _orderId,
           amountReceived: _amountReceived,
         );
-    if (context.mounted) {
-      await ref.read(cashierRepositoryProvider).getOrCreateOrder();
-      context.go('/cashier');
-    }
+
+    if (!context.mounted) return;
+
+    await ref.read(cashierRepositoryProvider).getOrCreateOrder();
+
+    if (!context.mounted) return;
+    context.go('/cashier');
   }
 }
