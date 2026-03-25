@@ -110,22 +110,22 @@ class ProductsPage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                DropdownButton<int?>(
-                  value: selectedCatId,
-                  decoration:
-                      const InputDecoration(labelText: '分類'),
-                  items: [
-                    const DropdownMenuItem(
-                        value: null, child: Text('未分類')),
-                    ...categories.map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(c.name),
-                      ),
+                InputDecorator(
+                  decoration: const InputDecoration(labelText: '分類'),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int?>(
+                      value: selectedCatId,
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('未分類')),
+                        ...categories.map((c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.name),
+                            )),
+                      ],
+                      onChanged: (v) => setState(() => selectedCatId = v),
                     ),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => selectedCatId = v),
+                  ),
                 ),
                 SwitchListTile(
                   title: const Text('啟用'),
