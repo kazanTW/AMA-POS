@@ -6,7 +6,7 @@ final appTheme = ThemeData(
     seedColor: const Color(0xFF1565C0),
     brightness: Brightness.light,
   ),
-  cardTheme: const CardTheme(
+  cardTheme: const CardThemeData(
     elevation: 2,
     margin: EdgeInsets.all(4),
   ),
