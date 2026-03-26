@@ -48,7 +48,7 @@ jobs:
       - name: Gradle assembleDebug (diagnostics)
         if: failure()
         working-directory: android
-        run: ./gradlew :app:assembleDebug --stacktrace --info
+        run: ./gradlew :app:assembleDebug --stacktrace --debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
