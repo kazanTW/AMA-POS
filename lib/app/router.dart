@@ -12,6 +12,7 @@ import '../features/backoffice/presentation/pages/reports_page.dart';
 import '../features/backoffice/presentation/pages/shifts_page.dart';
 import '../features/cashier/presentation/pages/cashier_page.dart';
 import '../features/cashier/presentation/pages/checkout_page.dart';
+import '../features/cashier/presentation/pages/unpaid_orders_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -27,6 +28,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.uri.queryParameters['orderId']!;
           return CheckoutPage(orderId: orderId);
         },
+      ),
+      GoRoute(
+        path: '/cashier/unpaid-orders',
+        builder: (context, state) => const UnpaidOrdersPage(),
       ),
       GoRoute(
         path: '/backoffice',
