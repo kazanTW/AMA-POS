@@ -31,7 +31,8 @@ class CashierRepository {
     final now = DateTime.now();
     final todayOrders = await _db.getPaidOrdersByDate(now);
     final seq = todayOrders.length + 1;
-    final orderNo = generateOrderNo(now, seq);
+    final config = await _db.getMerchantConfig();
+    final orderNo = generateOrderNo(config.terminalCode, seq);
 
     final openShift = await _db.getOpenShift();
 

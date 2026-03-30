@@ -14,8 +14,10 @@ class MerchantSettingsPage extends ConsumerStatefulWidget {
 
 class _MerchantSettingsPageState extends ConsumerState<MerchantSettingsPage> {
   final _tableCountController = TextEditingController();
+  final _terminalCodeController = TextEditingController();
   bool _loading = true;
   bool _saving = false;
+  String? _terminalCodeError;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _MerchantSettingsPageState extends ConsumerState<MerchantSettingsPage> {
     if (mounted) {
       setState(() {
         _tableCountController.text = config.tableCount.toString();
+        _terminalCodeController.text = config.terminalCode;
         _loading = false;
       });
     }
@@ -37,14 +40,31 @@ class _MerchantSettingsPageState extends ConsumerState<MerchantSettingsPage> {
   @override
   void dispose() {
     _tableCountController.dispose();
+    _terminalCodeController.dispose();
     super.dispose();
   }
 
+  String? _validateTerminalCode(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '不可為空';
+    if (trimmed.length > 4) return '最多 4 個字元';
+    if (!RegExp(r'^[A-Za-z0-9]+$').hasMatch(trimmed)) return '僅允許英文字母與數字';
+    return null;
+  }
+
   Future<void> _save() async {
+    final terminalCode = _terminalCodeController.text.trim().toUpperCase();
+    final terminalCodeErr = _validateTerminalCode(terminalCode);
+    setState(() => _terminalCodeError = terminalCodeErr);
+    if (terminalCodeErr != null) return;
+
     final count = int.tryParse(_tableCountController.text.trim()) ?? 0;
     setState(() => _saving = true);
     try {
       await ref.read(backofficeRepositoryProvider).setTableCount(count);
+      await ref
+          .read(backofficeRepositoryProvider)
+          .setTerminalCode(terminalCode);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('已儲存')),
@@ -66,6 +86,31 @@ class _MerchantSettingsPageState extends ConsumerState<MerchantSettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    '機台代碼',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 200,
+                    child: TextField(
+                      controller: _terminalCodeController,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'[A-Za-z0-9]')),
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: '機台代碼',
+                        hintText: 'A1',
+                        border: const OutlineInputBorder(),
+                        helperText: '1–4 碼英數，存為大寫',
+                        errorText: _terminalCodeError,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   Text(
                     '桌號設定',
                     style: Theme.of(context).textTheme.titleMedium,

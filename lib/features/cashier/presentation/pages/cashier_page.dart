@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/db/app_database.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../../../core/utils/money.dart';
 import '../../application/cashier_notifier.dart';
 import '../../data/cashier_repository.dart';
@@ -202,6 +203,27 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                           ),
                         ),
                       const Divider(),
+                      // Order info: serial number and time
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '流水號：${order.orderNo}',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '時間：${formatDateTime(order.createdAt)}',
+                              style: const TextStyle(
+                                  fontSize: 13, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
                       // Order items
                       Expanded(
                         child: itemsAsync.when(

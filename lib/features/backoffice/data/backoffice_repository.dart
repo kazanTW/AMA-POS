@@ -123,6 +123,9 @@ class BackofficeRepository {
   Future<void> setTableCount(int tableCount) =>
       _db.updateMerchantConfig({'tableCount': tableCount});
 
+  Future<void> setTerminalCode(String terminalCode) =>
+      _db.updateMerchantConfig({'terminalCode': terminalCode.toUpperCase()});
+
   // ---- Import/Export ----
   Future<String> exportConfig() async {
     final data = await _db.exportConfigData();
