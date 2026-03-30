@@ -498,6 +498,13 @@ class AppDatabase {
     await db.delete('orderItems', where: 'orderId = ?', whereArgs: [orderId]);
   }
 
+  /// Hard-deletes an unpaid order and all its items from the database.
+  Future<void> deleteOrder(int orderId) async {
+    final db = await database;
+    await db.delete('orderItems', where: 'orderId = ?', whereArgs: [orderId]);
+    await db.delete('orders', where: 'id = ?', whereArgs: [orderId]);
+  }
+
   // -------------------------------------------------------------------------
   // Modifier Groups
   // -------------------------------------------------------------------------

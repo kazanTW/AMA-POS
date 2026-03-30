@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/db/app_database.dart';
 import '../../../../core/db/models.dart';
 import '../../../../core/utils/datetime_utils.dart';
 import '../../../../core/utils/money.dart';
@@ -67,6 +66,45 @@ class _CashierPageState extends ConsumerState<CashierPage> {
       appBar: AppBar(
         title: const Text('AMA-POS 櫃台'),
         actions: [
+          // 掛單/改名
+          orderAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (order) => order != null
+                ? IconButton(
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    tooltip: '掛單/改名',
+                    onPressed: () =>
+                        _showHoldDialog(context, ref, order),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          // 取單 (full page)
+          IconButton(
+            icon: const Icon(Icons.list_alt),
+            tooltip: '取單',
+            onPressed: () => _guardedNavigateToUnpaidOrders(context, ref),
+          ),
+          // 新單
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: '新單',
+            onPressed: () => _guardedNewOrder(context, ref),
+          ),
+          // 刪除未結帳單
+          orderAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (order) => order != null && order.isUnpaid
+                ? IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.red),
+                    tooltip: '刪除未結帳單',
+                    onPressed: () =>
+                        _confirmDeleteOrder(context, ref, order.id),
+                  )
+                : const SizedBox.shrink(),
+          ),
           TextButton.icon(
             icon: const Icon(Icons.settings),
             label: const Text('後台'),
@@ -151,7 +189,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
         OutlinedButton.icon(
           icon: const Icon(Icons.list_alt),
           label: const Text('取單'),
-          onPressed: () => _showSwitchDialog(context, ref),
+          onPressed: () => context.push('/cashier/unpaid-orders'),
         ),
       ],
     );
@@ -361,13 +399,13 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Switch / 取單
+                  // Switch / 取單 (navigates to full page)
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.list_alt),
                       label: const Text('取單'),
                       onPressed: () =>
-                          _showSwitchDialog(context, ref),
+                          _guardedNavigateToUnpaidOrders(context, ref),
                     ),
                   ),
                 ],
@@ -376,10 +414,9 @@ class _CashierPageState extends ConsumerState<CashierPage> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('清除訂單'),
-                  onPressed: () =>
-                      _confirmClearOrder(context, ref, order.id),
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('新單'),
+                  onPressed: () => _guardedNewOrder(context, ref),
                 ),
               ),
             ],
@@ -390,7 +427,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // Hold dialog (掛單)
+  // Hold dialog (掛單/改名)
   // ---------------------------------------------------------------------------
 
   void _showHoldDialog(BuildContext context, WidgetRef ref, Order order) {
@@ -399,7 +436,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('掛單'),
+        title: const Text('掛單／改名'),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -421,14 +458,8 @@ class _CashierPageState extends ConsumerState<CashierPage> {
               await ref
                   .read(cashierRepositoryProvider)
                   .setHoldLabel(order.id, label.isEmpty ? null : label);
-              // Deselect current order so cashier starts fresh.
-              ref.read(currentOrderIdProvider.notifier).state = null;
-              setState(() {
-                _isDineIn = false;
-                _selectedTable = null;
-              });
             },
-            child: const Text('掛單確認'),
+            child: const Text('儲存'),
           ),
         ],
       ),
@@ -436,53 +467,29 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // Switch dialog (取單)
+  // Delete current order (刪除未結帳單) – hard delete
   // ---------------------------------------------------------------------------
 
-  void _showSwitchDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => _SwitchOrderDialog(
-        onSelect: (orderId) {
-          ref.read(currentOrderIdProvider.notifier).state = orderId;
-          setState(() {
-            _isDineIn = false;
-            _selectedTable = null;
-          });
-        },
-        currentOrderId: ref.read(currentOrderIdProvider),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Clear order dialog
-  // ---------------------------------------------------------------------------
-
-  void _confirmClearOrder(
+  void _confirmDeleteOrder(
       BuildContext context, WidgetRef ref, int orderId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('清除訂單'),
-        content: const Text('確定要清除目前的訂單嗎？'),
+        title: const Text('刪除未結帳單'),
+        content: const Text('確定要刪除目前的未結帳單嗎？此操作無法復原。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('取消'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.pop(ctx);
-              final db = ref.read(appDatabaseProvider);
-              await db.clearOrderItems(orderId);
-              await db.updateOrder(orderId, {
-                'subtotal': 0,
-                'total': 0,
-                'type': 'takeOut',
-                'tableNo': null,
-                'updatedAt': DateTime.now().millisecondsSinceEpoch,
-              });
+              await ref
+                  .read(cashierRepositoryProvider)
+                  .deleteOrder(orderId);
+              ref.read(currentOrderIdProvider.notifier).state = null;
               if (mounted) {
                 setState(() {
                   _isDineIn = false;
@@ -490,124 +497,169 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                 });
               }
             },
-            child: const Text('確定'),
+            child: const Text('刪除'),
           ),
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Guarded navigation: prompt when current order is unlabeled and has items
+  // ---------------------------------------------------------------------------
+
+  /// Returns true if the current order is "at risk" (has items but no label),
+  /// which means we should warn before leaving it.
+  Future<bool> _currentOrderNeedsGuard(WidgetRef ref) async {
+    final orderId = ref.read(currentOrderIdProvider);
+    if (orderId == null) return false;
+    final repo = ref.read(cashierRepositoryProvider);
+    final order = await repo.getOrderById(orderId);
+    if (order == null || !order.isUnpaid) return false;
+    if (order.holdLabel != null && order.holdLabel!.isNotEmpty) return false;
+    final items = await repo.getOrderItems(orderId);
+    return items.isNotEmpty;
+  }
+
+  /// Shows the UX guardrail dialog.
+  /// Returns true if caller should proceed (Save or Discard was chosen).
+  Future<bool> _showGuardDialog(
+      BuildContext context, WidgetRef ref, Order order) async {
+    final labelController = TextEditingController();
+    final result = await showDialog<_GuardAction>(
+      context: context,
+      builder: (ctx) => _GuardDialog(
+        labelController: labelController,
+        order: order,
+      ),
+    );
+    labelController.dispose();
+
+    if (result == null || result == _GuardAction.cancel) return false;
+
+    if (result == _GuardAction.save) {
+      // The dialog already set the label via the controller; apply it.
+      final label = labelController.text.trim();
+      await ref
+          .read(cashierRepositoryProvider)
+          .setHoldLabel(order.id, label.isEmpty ? null : label);
+      return true;
+    }
+
+    // Discard: hard-delete the current order.
+    if (result == _GuardAction.discard) {
+      await ref.read(cashierRepositoryProvider).deleteOrder(order.id);
+      ref.read(currentOrderIdProvider.notifier).state = null;
+      if (mounted) {
+        setState(() {
+          _isDineIn = false;
+          _selectedTable = null;
+        });
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Navigates to the unpaid orders full page, with guardrail if needed.
+  Future<void> _guardedNavigateToUnpaidOrders(
+      BuildContext context, WidgetRef ref) async {
+    final needsGuard = await _currentOrderNeedsGuard(ref);
+    if (needsGuard && mounted) {
+      final orderId = ref.read(currentOrderIdProvider);
+      if (orderId == null) {
+        if (mounted) context.push('/cashier/unpaid-orders');
+        return;
+      }
+      final repo = ref.read(cashierRepositoryProvider);
+      final order = await repo.getOrderById(orderId);
+      if (order == null) {
+        if (mounted) context.push('/cashier/unpaid-orders');
+        return;
+      }
+      final proceed = await _showGuardDialog(context, ref, order);
+      if (!proceed) return;
+    }
+    if (mounted) context.push('/cashier/unpaid-orders');
+  }
+
+  /// Starts a new order context, with guardrail if needed.
+  Future<void> _guardedNewOrder(BuildContext context, WidgetRef ref) async {
+    final needsGuard = await _currentOrderNeedsGuard(ref);
+    if (needsGuard && mounted) {
+      final orderId = ref.read(currentOrderIdProvider);
+      if (orderId != null) {
+        final repo = ref.read(cashierRepositoryProvider);
+        final order = await repo.getOrderById(orderId);
+        if (order != null) {
+          final proceed = await _showGuardDialog(context, ref, order);
+          if (!proceed) return;
+        }
+      }
+    }
+    // Clear current order so the cashier enters "new order" state.
+    ref.read(currentOrderIdProvider.notifier).state = null;
+    if (mounted) {
+      setState(() {
+        _isDineIn = false;
+        _selectedTable = null;
+      });
+    }
   }
 }
 
 // =============================================================================
-// Switch-order dialog widget
+// UX guardrail helpers
 // =============================================================================
 
-class _SwitchOrderDialog extends ConsumerWidget {
-  const _SwitchOrderDialog({
-    required this.onSelect,
-    required this.currentOrderId,
+enum _GuardAction { save, discard, cancel }
+
+class _GuardDialog extends StatelessWidget {
+  const _GuardDialog({
+    required this.labelController,
+    required this.order,
   });
 
-  final void Function(int orderId) onSelect;
-  final int? currentOrderId;
+  final TextEditingController labelController;
+  final Order order;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ordersAsync = ref.watch(unpaidOrdersProvider);
-
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('取單 — 未結帳訂單'),
-      content: SizedBox(
-        width: 400,
-        child: ordersAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
-          data: (orders) {
-            if (orders.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  '目前沒有未結帳訂單',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              );
-            }
-            return ListView.separated(
-              shrinkWrap: true,
-              itemCount: orders.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final o = orders[i];
-                final isActive = o.id == currentOrderId;
-                return ListTile(
-                  selected: isActive,
-                  leading: isActive
-                      ? const Icon(Icons.bookmark,
-                          color: Colors.deepOrange)
-                      : const Icon(Icons.receipt_outlined),
-                  title: Text(
-                    o.holdLabel != null && o.holdLabel!.isNotEmpty
-                        ? o.holdLabel!
-                        : o.orderNo,
-                  ),
-                  subtitle: Text(
-                    '${formatDateTime(o.createdAt)}　合計 ${formatMoney(o.total)}',
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.red),
-                    tooltip: '作廢此訂單',
-                    onPressed: () => _confirmVoid(context, ref, o.id),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onSelect(o.id);
-                  },
-                );
-              },
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('關閉'),
-        ),
-      ],
-    );
-  }
-
-  void _confirmVoid(BuildContext context, WidgetRef ref, int orderId) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('作廢訂單'),
-        content: const Text('確定要作廢此訂單嗎？此操作無法復原。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref
-                  .read(cashierRepositoryProvider)
-                  .voidOrder(orderId);
-              // If we just voided the active order, deselect it.
-              if (ref.read(currentOrderIdProvider) == orderId) {
-                ref.read(currentOrderIdProvider.notifier).state = null;
-              }
-            },
-            child: const Text('作廢'),
+      title: const Text('目前訂單尚未命名'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('目前的未結帳單尚未設定桌號／備註，要先儲存還是捨棄？'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: labelController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: '桌號／備註（選填）',
+              hintText: '例如：1號桌、外帶王先生',
+              border: OutlineInputBorder(),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, _GuardAction.cancel),
+          child: const Text('取消'),
+        ),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+          onPressed: () => Navigator.pop(context, _GuardAction.discard),
+          child: const Text('捨棄'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _GuardAction.save),
+          child: const Text('儲存掛單'),
+        ),
+      ],
     );
   }
 }

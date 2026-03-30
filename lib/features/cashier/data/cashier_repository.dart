@@ -160,6 +160,16 @@ class CashierRepository {
     });
   }
 
+  /// Hard-deletes an unpaid order and all its items from the database.
+  Future<void> deleteOrder(int orderId) => _db.deleteOrder(orderId);
+
+  /// Returns an order by its ID, or null if not found.
+  Future<Order?> getOrderById(int id) => _db.getOrderById(id);
+
+  /// Returns all items for the given order.
+  Future<List<OrderItem>> getOrderItems(int orderId) =>
+      _db.getOrderItems(orderId);
+
   Future<void> setOrderPendingPayment(int orderId) async {
     await _db.updateOrder(orderId, {
       'status': 'pendingPayment',
