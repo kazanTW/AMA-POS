@@ -224,7 +224,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (!context.mounted) return;
 
-    await ref.read(cashierRepositoryProvider).getOrCreateOrder();
+    // Reset cashier to empty state; next order starts on first product tap.
+    ref.read(currentOrderIdProvider.notifier).state = null;
 
     if (!context.mounted) return;
     context.go('/cashier');

@@ -8,9 +8,7 @@ import '../../data/cashier_repository.dart';
 import 'modifier_dialog.dart';
 
 class ProductGrid extends ConsumerWidget {
-  const ProductGrid({super.key, required this.orderId});
-
-  final int orderId;
+  const ProductGrid({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +29,7 @@ class ProductGrid extends ConsumerWidget {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          return _ProductCard(product: product, orderId: orderId);
+          return _ProductCard(product: product);
         },
       ),
     );
@@ -39,10 +37,9 @@ class ProductGrid extends ConsumerWidget {
 }
 
 class _ProductCard extends ConsumerWidget {
-  const _ProductCard({required this.product, required this.orderId});
+  const _ProductCard({required this.product});
 
   final Product product;
-  final int orderId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,10 +77,19 @@ class _ProductCard extends ConsumerWidget {
 
   Future<void> _onTap(BuildContext context, WidgetRef ref) async {
     final repo = ref.read(cashierRepositoryProvider);
+
+    // Ensure we have an active order; create one on first tap if needed.
+    var orderId = ref.read(currentOrderIdProvider);
+    if (orderId == null) {
+      final order = await repo.createNewOrder();
+      orderId = order.id;
+      ref.read(currentOrderIdProvider.notifier).state = orderId;
+    }
+
     final groups = await repo.getModifierGroupsForProduct(product.id);
 
     if (groups.isEmpty) {
-      // No modifiers – add directly (original behaviour).
+      // No modifiers – add directly.
       await repo.addItemToOrder(orderId, product);
       return;
     }
