@@ -194,6 +194,7 @@ class OrderItem {
   final int priceSnapshot;
   final int qty;
   final int lineTotal;
+  final int modifierTotal;
   final String? modifiersSnapshot;
 
   const OrderItem({
@@ -204,6 +205,7 @@ class OrderItem {
     required this.priceSnapshot,
     required this.qty,
     required this.lineTotal,
+    this.modifierTotal = 0,
     this.modifiersSnapshot,
   });
 
@@ -215,6 +217,7 @@ class OrderItem {
         priceSnapshot: map['priceSnapshot'] as int,
         qty: map['qty'] as int,
         lineTotal: map['lineTotal'] as int,
+        modifierTotal: map['modifierTotal'] as int? ?? 0,
         modifiersSnapshot: map['modifiersSnapshot'] as String?,
       );
 
@@ -226,6 +229,7 @@ class OrderItem {
         'priceSnapshot': priceSnapshot,
         'qty': qty,
         'lineTotal': lineTotal,
+        'modifierTotal': modifierTotal,
         'modifiersSnapshot': modifiersSnapshot,
       };
 
@@ -237,6 +241,7 @@ class OrderItem {
     int? priceSnapshot,
     int? qty,
     int? lineTotal,
+    int? modifierTotal,
     Object? modifiersSnapshot = _sentinel,
   }) =>
       OrderItem(
@@ -248,6 +253,7 @@ class OrderItem {
         priceSnapshot: priceSnapshot ?? this.priceSnapshot,
         qty: qty ?? this.qty,
         lineTotal: lineTotal ?? this.lineTotal,
+        modifierTotal: modifierTotal ?? this.modifierTotal,
         modifiersSnapshot: modifiersSnapshot == _sentinel
             ? this.modifiersSnapshot
             : modifiersSnapshot as String?,

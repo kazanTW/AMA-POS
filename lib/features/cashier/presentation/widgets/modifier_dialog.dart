@@ -63,6 +63,12 @@ class _ModifierDialogState extends State<_ModifierDialog> {
     return jsonEncode({'groups': groupList});
   }
 
+  String _optionLabel(ModifierOption opt) {
+    if (opt.priceDelta == 0) return opt.name;
+    final sign = opt.priceDelta > 0 ? '+' : '';
+    return '${opt.name}（$sign${opt.priceDelta}）';
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -85,7 +91,7 @@ class _ModifierDialogState extends State<_ModifierDialog> {
                 ...g.options.map((opt) => RadioListTile<ModifierOption>(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      title: Text(opt.name),
+                      title: Text(_optionLabel(opt)),
                       value: opt,
                       groupValue: _selections[g.group.id],
                       onChanged: (v) =>

@@ -48,7 +48,9 @@ class ModifierOptionsPage extends ConsumerWidget {
                       style:
                           TextStyle(color: o.isActive ? null : Colors.grey),
                     ),
-                    subtitle: Text(o.isActive ? '啟用' : '停用'),
+                    subtitle: Text(
+                      '${o.isActive ? '啟用' : '停用'} 加價：${o.priceDelta >= 0 ? '+' : ''}${o.priceDelta}',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _showOptionActions(context, ref, o),
                   );
@@ -120,6 +122,8 @@ class ModifierOptionsPage extends ConsumerWidget {
       BuildContext context, WidgetRef ref, ModifierOption? existing) {
     final nameCtrl =
         TextEditingController(text: existing?.name ?? '');
+    final priceDeltaCtrl = TextEditingController(
+        text: existing != null ? '${existing.priceDelta}' : '0');
     bool isActive = existing?.isActive ?? true;
 
     showDialog<void>(
@@ -134,6 +138,14 @@ class ModifierOptionsPage extends ConsumerWidget {
                 controller: nameCtrl,
                 decoration: const InputDecoration(labelText: '選項名稱'),
                 autofocus: true,
+              ),
+              TextField(
+                controller: priceDeltaCtrl,
+                decoration: const InputDecoration(
+                  labelText: '加價（整數，可為負）',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(signed: true),
               ),
               SwitchListTile(
                 title: const Text('啟用'),
@@ -151,10 +163,13 @@ class ModifierOptionsPage extends ConsumerWidget {
               onPressed: () {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) return;
+                final priceDelta =
+                    int.tryParse(priceDeltaCtrl.text.trim()) ?? 0;
                 ref.read(backofficeRepositoryProvider).saveModifierOption(
                       id: existing?.id,
                       groupId: groupId,
                       name: name,
+                      priceDelta: priceDelta,
                       isActive: isActive,
                     );
                 Navigator.pop(ctx);

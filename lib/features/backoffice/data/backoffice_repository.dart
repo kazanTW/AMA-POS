@@ -114,13 +114,14 @@ class BackofficeRepository {
     required int groupId,
     required String name,
     required bool isActive,
+    int priceDelta = 0,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (id == null) {
       await _db.insertModifierOption({
         'groupId': groupId,
         'name': name,
-        'priceDelta': 0,
+        'priceDelta': priceDelta,
         'isActive': isActive ? 1 : 0,
         'sortOrder': 0,
         'updatedAt': now,
@@ -128,6 +129,7 @@ class BackofficeRepository {
     } else {
       await _db.updateModifierOption(id, {
         'name': name,
+        'priceDelta': priceDelta,
         'isActive': isActive ? 1 : 0,
         'updatedAt': now,
       });

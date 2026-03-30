@@ -37,7 +37,7 @@ class AppDatabase {
     final path = p.join(docsDir.path, 'amapos.sqlite');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -103,6 +103,7 @@ class AppDatabase {
         priceSnapshot INTEGER NOT NULL,
         qty INTEGER NOT NULL DEFAULT 1,
         lineTotal INTEGER NOT NULL DEFAULT 0,
+        modifierTotal INTEGER NOT NULL DEFAULT 0,
         modifiersSnapshot TEXT,
         FOREIGN KEY (orderId) REFERENCES orders(id)
       )
@@ -214,6 +215,11 @@ class AppDatabase {
           FOREIGN KEY (groupId) REFERENCES modifierGroups(id)
         )
       ''');
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+        'ALTER TABLE orderItems ADD COLUMN modifierTotal INTEGER NOT NULL DEFAULT 0',
+      );
     }
   }
 
