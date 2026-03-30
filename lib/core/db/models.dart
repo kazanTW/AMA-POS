@@ -349,6 +349,7 @@ class MerchantConfig {
   final String merchantName;
   final String currency;
   final int schemaVersion;
+  final int tableCount;
   final DateTime updatedAt;
 
   const MerchantConfig({
@@ -356,6 +357,7 @@ class MerchantConfig {
     required this.merchantName,
     required this.currency,
     required this.schemaVersion,
+    required this.tableCount,
     required this.updatedAt,
   });
 
@@ -364,6 +366,7 @@ class MerchantConfig {
         merchantName: map['merchantName'] as String,
         currency: map['currency'] as String,
         schemaVersion: map['schemaVersion'] as int,
+        tableCount: map['tableCount'] as int? ?? 0,
         updatedAt:
             DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int),
       );
@@ -373,6 +376,7 @@ class MerchantConfig {
         'merchantName': merchantName,
         'currency': currency,
         'schemaVersion': schemaVersion,
+        'tableCount': tableCount,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
       };
 }

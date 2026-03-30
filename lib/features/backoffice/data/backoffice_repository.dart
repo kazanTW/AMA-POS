@@ -117,6 +117,12 @@ class BackofficeRepository {
     };
   }
 
+  // ---- Merchant Config ----
+  Future<MerchantConfig> getMerchantConfig() => _db.getMerchantConfig();
+
+  Future<void> setTableCount(int tableCount) =>
+      _db.updateMerchantConfig({'tableCount': tableCount});
+
   // ---- Import/Export ----
   Future<String> exportConfig() async {
     final data = await _db.exportConfigData();
