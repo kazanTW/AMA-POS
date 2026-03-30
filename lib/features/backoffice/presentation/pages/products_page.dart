@@ -7,6 +7,8 @@ import '../../../../core/utils/money.dart';
 import '../../application/backoffice_notifier.dart';
 import '../../data/backoffice_repository.dart';
 
+const double _kFabClearance = 88.0;
+
 class ProductsPage extends ConsumerWidget {
   const ProductsPage({super.key});
 
@@ -33,6 +35,7 @@ class ProductsPage extends ConsumerWidget {
           data: (cats) {
             final catMap = {for (final c in cats) c.id: c.name};
             return ListView.builder(
+              padding: const EdgeInsets.only(bottom: _kFabClearance),
               itemCount: products.length,
               itemBuilder: (ctx, i) {
                 final p = products[i];
@@ -49,28 +52,70 @@ class ProductsPage extends ConsumerWidget {
                   subtitle: Text(
                     '${catMap[p.categoryId] ?? '未分類'} · ${formatMoney(p.price)}',
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () =>
-                            _showProductDialog(context, ref, p, cats),
-                      ),
-                      IconButton(
-                        icon:
-                            const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => ref
-                            .read(backofficeRepositoryProvider)
-                            .deleteProduct(p.id),
-                      ),
-                    ],
-                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showProductActions(context, ref, p, cats),
                 );
               },
             );
           },
         ),
+      ),
+    );
+  }
+
+  void _showProductActions(BuildContext context, WidgetRef ref,
+      Product product, List<Category> categories) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('編輯'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showProductDialog(context, ref, product, categories);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('刪除', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmDeleteProduct(context, ref, product);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteProduct(
+      BuildContext context, WidgetRef ref, Product product) {
+    showDialog<void>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Text('刪除商品'),
+        content: Text('要刪除「${product.name}」嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dlgCtx);
+              ref
+                  .read(backofficeRepositoryProvider)
+                  .deleteProduct(product.id);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('刪除'),
+          ),
+        ],
       ),
     );
   }
