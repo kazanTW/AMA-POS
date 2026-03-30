@@ -150,7 +150,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
-                              children: [100, 500, 1000].map((amt) {
+                              children: [500, 1000].map((amt) {
                                 return OutlinedButton(
                                   onPressed: () {
                                     int newAmt = amt;
