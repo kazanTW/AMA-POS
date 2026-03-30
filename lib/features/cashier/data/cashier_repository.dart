@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/app_database.dart';
@@ -58,35 +60,37 @@ class CashierRepository {
     Product product, {
     String? modifiersSnapshot,
   }) async {
-    final items = await _db.getOrderItems(orderId);
-    // Only merge items that have no modifiers AND share the same productId.
-    // Items with modifiers are always added as separate line items because
-    // each modifier combination is a distinct selection.
-    if (modifiersSnapshot == null) {
-      final existing = items
-          .where((i) =>
-              i.productId == product.id && i.modifiersSnapshot == null)
-          .firstOrNull;
-      if (existing != null) {
-        final newQty = existing.qty + 1;
-        await _db.updateOrderItem(existing.id, {
-          'qty': newQty,
-          'lineTotal': product.price * newQty,
-        });
-        await _recalcOrder(orderId);
-        return;
-      }
-    }
+    // Rule 2B: never merge – always insert a new orderItem row.
+    final modifierTotal = _calcModifierTotal(modifiersSnapshot);
+    final unitPrice = product.price + modifierTotal;
     await _db.addOrderItem({
       'orderId': orderId,
       'productId': product.id,
       'nameSnapshot': product.name,
       'priceSnapshot': product.price,
       'qty': 1,
-      'lineTotal': product.price,
+      'lineTotal': unitPrice,
+      'modifierTotal': modifierTotal,
       'modifiersSnapshot': modifiersSnapshot,
     });
     await _recalcOrder(orderId);
+  }
+
+  /// Parses [snapshot] JSON and returns the sum of all `priceDelta` values.
+  /// Returns 0 if snapshot is null or cannot be parsed.
+  static int _calcModifierTotal(String? snapshot) {
+    if (snapshot == null || snapshot.isEmpty) return 0;
+    try {
+      final data = jsonDecode(snapshot) as Map<String, dynamic>;
+      final groups = data['groups'] as List<dynamic>?;
+      if (groups == null) return 0;
+      return groups.fold<int>(
+        0,
+        (sum, g) => sum + ((g['priceDelta'] as num?)?.toInt() ?? 0),
+      );
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> updateItemQty(int orderId, int itemId, int qty) async {
@@ -97,7 +101,7 @@ class CashierRepository {
       final item = items.firstWhere((i) => i.id == itemId);
       await _db.updateOrderItem(itemId, {
         'qty': qty,
-        'lineTotal': item.priceSnapshot * qty,
+        'lineTotal': (item.priceSnapshot + item.modifierTotal) * qty,
       });
     }
     await _recalcOrder(orderId);

@@ -50,6 +50,14 @@ class OrderItemTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(formatMoney(item.priceSnapshot)),
+          if (item.modifierTotal != 0)
+            Text(
+              '配料：${item.modifierTotal > 0 ? '+' : ''}${item.modifierTotal}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+            ),
           if (summary != null)
             Text(
               summary,
