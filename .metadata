@@ -4,7 +4,7 @@
 # This file should be version controlled and should not be manually edited.
 
 version:
-  revision: "unknown"
+  revision: "db50e20168db8fee486b9abf32fc912de3bc5b6a"
   channel: "stable"
 
 project_type: app
@@ -13,16 +13,16 @@ project_type: app
 migration:
   platforms:
     - platform: root
-      create_revision: unknown
-      base_revision: unknown
-    - platform: android
-      create_revision: unknown
-      base_revision: unknown
+      create_revision: db50e20168db8fee486b9abf32fc912de3bc5b6a
+      base_revision: db50e20168db8fee486b9abf32fc912de3bc5b6a
+    - platform: linux
+      create_revision: db50e20168db8fee486b9abf32fc912de3bc5b6a
+      base_revision: db50e20168db8fee486b9abf32fc912de3bc5b6a
 
   # User provided section
 
   # List of Local paths (relative to this file) that should be
-  # temporarily ignored by the migrate tool.
+  # ignored by the migrate tool.
   #
   # Files that are not part of the templates will be ignored by default.
   unmanaged_files:
