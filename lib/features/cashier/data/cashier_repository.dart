@@ -59,7 +59,9 @@ class CashierRepository {
     String? modifiersSnapshot,
   }) async {
     final items = await _db.getOrderItems(orderId);
-    // Only merge items that have no modifiers AND have the same productId
+    // Only merge items that have no modifiers AND share the same productId.
+    // Items with modifiers are always added as separate line items because
+    // each modifier combination is a distinct selection.
     if (modifiersSnapshot == null) {
       final existing = items
           .where((i) =>

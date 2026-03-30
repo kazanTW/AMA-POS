@@ -31,7 +31,8 @@ class OrderItemTile extends ConsumerWidget {
         final optionName = g['optionName'] as String? ?? '';
         return '$groupName：$optionName';
       }).join('；');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('OrderItemTile: failed to parse modifiersSnapshot: $e');
       return null;
     }
   }
