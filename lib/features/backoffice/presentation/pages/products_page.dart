@@ -33,6 +33,7 @@ class ProductsPage extends ConsumerWidget {
           data: (cats) {
             final catMap = {for (final c in cats) c.id: c.name};
             return ListView.builder(
+              padding: const EdgeInsets.only(bottom: 88),
               itemCount: products.length,
               itemBuilder: (ctx, i) {
                 final p = products[i];
@@ -49,27 +50,66 @@ class ProductsPage extends ConsumerWidget {
                   subtitle: Text(
                     '${catMap[p.categoryId] ?? '未分類'} · ${formatMoney(p.price)}',
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () =>
-                            _showProductDialog(context, ref, p, cats),
+                  trailing: const Icon(Icons.more_vert),
+                  onTap: () => _showProductActions(context, ref, p, cats),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showProductActions(BuildContext context, WidgetRef ref,
+      Product product, List<Category> categories) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('編輯'),
+              onTap: () {
+                Navigator.pop(context);
+                _showProductDialog(context, ref, product, categories);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('刪除', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('確認刪除'),
+                    content: Text('確定要刪除「${product.name}」嗎？'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('取消'),
                       ),
-                      IconButton(
-                        icon:
-                            const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => ref
-                            .read(backofficeRepositoryProvider)
-                            .deleteProduct(p.id),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          ref
+                              .read(backofficeRepositoryProvider)
+                              .deleteProduct(product.id);
+                        },
+                        child: const Text('刪除'),
                       ),
                     ],
                   ),
                 );
               },
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
