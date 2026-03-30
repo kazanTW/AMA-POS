@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/backoffice/presentation/pages/backoffice_home_page.dart';
 import '../features/backoffice/presentation/pages/categories_page.dart';
 import '../features/backoffice/presentation/pages/import_export_page.dart';
+import '../features/backoffice/presentation/pages/merchant_settings_page.dart';
 import '../features/backoffice/presentation/pages/products_page.dart';
 import '../features/backoffice/presentation/pages/reports_page.dart';
 import '../features/backoffice/presentation/pages/shifts_page.dart';
@@ -48,6 +49,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'import-export',
             builder: (context, state) => const ImportExportPage(),
+          ),
+          GoRoute(
+            path: 'merchant-settings',
+            builder: (context, state) => const MerchantSettingsPage(),
           ),
         ],
       ),

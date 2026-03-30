@@ -46,6 +46,11 @@ class BackofficeHomePage extends StatelessWidget {
                 icon: Icons.import_export,
                 onTap: () => context.push('/backoffice/import-export'),
               ),
+              _NavCard(
+                title: '商家設定',
+                icon: Icons.store,
+                onTap: () => context.push('/backoffice/merchant-settings'),
+              ),
             ],
           ),
         ),

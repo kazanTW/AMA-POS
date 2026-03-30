@@ -37,8 +37,9 @@ class AppDatabase {
     final path = p.join(docsDir.path, 'amapos.sqlite');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -125,9 +126,18 @@ class AppDatabase {
         merchantName TEXT NOT NULL DEFAULT 'AMA POS',
         currency TEXT NOT NULL DEFAULT 'TWD',
         schemaVersion INTEGER NOT NULL DEFAULT 1,
+        tableCount INTEGER NOT NULL DEFAULT 0,
         updatedAt INTEGER NOT NULL
       )
     ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE merchantConfigs ADD COLUMN tableCount INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -213,6 +223,7 @@ class AppDatabase {
       'merchantName': 'AMA 小店',
       'currency': 'TWD',
       'schemaVersion': 1,
+      'tableCount': 0,
       'updatedAt': now,
     });
   }
@@ -589,15 +600,59 @@ class AppDatabase {
   }
 
   // -------------------------------------------------------------------------
+  // Merchant Config
+  // -------------------------------------------------------------------------
+
+  Future<MerchantConfig> getMerchantConfig() async {
+    final db = await database;
+    final maps = await db.query('merchantConfigs', where: 'id = 1', limit: 1);
+    if (maps.isEmpty) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert('merchantConfigs', {
+        'id': 1,
+        'merchantName': 'AMA 小店',
+        'currency': 'TWD',
+        'schemaVersion': 2,
+        'tableCount': 0,
+        'updatedAt': now,
+      });
+      return MerchantConfig(
+        id: 1,
+        merchantName: 'AMA 小店',
+        currency: 'TWD',
+        schemaVersion: 2,
+        tableCount: 0,
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(now),
+      );
+    }
+    return MerchantConfig.fromMap(maps.first);
+  }
+
+  Future<void> updateMerchantConfig(Map<String, dynamic> values) async {
+    final db = await database;
+    await db.update(
+      'merchantConfigs',
+      {...values, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
+      where: 'id = 1',
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // Import / Export
   // -------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> exportConfigData() async {
     final categories = await getAllCategories();
     final products = await getAllProducts();
+    final config = await getMerchantConfig();
     return {
       'schemaVersion': 1,
       'exportedAt': DateTime.now().toIso8601String(),
+      'merchantSettings': {
+        'merchantName': config.merchantName,
+        'currency': config.currency,
+        'tableCount': config.tableCount,
+      },
       'categories': categories
           .map((c) => {
                 'id': c.id,
@@ -623,7 +678,24 @@ class AppDatabase {
     final db = await database;
     final categories = (data['categories'] as List?) ?? [];
     final products = (data['products'] as List?) ?? [];
+    final merchantSettings =
+        data['merchantSettings'] as Map<String, dynamic>?;
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (merchantSettings != null) {
+      await db.update(
+        'merchantConfigs',
+        {
+          if (merchantSettings['merchantName'] != null)
+            'merchantName': merchantSettings['merchantName'] as String,
+          if (merchantSettings['currency'] != null)
+            'currency': merchantSettings['currency'] as String,
+          'tableCount': merchantSettings['tableCount'] as int? ?? 0,
+          'updatedAt': now,
+        },
+        where: 'id = 1',
+      );
+    }
 
     await db.delete('categories');
     for (final cat in categories) {

@@ -8,6 +8,7 @@ import '../../application/cashier_notifier.dart';
 import '../../data/cashier_repository.dart';
 import '../widgets/order_item_tile.dart';
 import '../widgets/product_grid.dart';
+import '../../../backoffice/data/backoffice_repository.dart';
 
 class CashierPage extends ConsumerStatefulWidget {
   const CashierPage({super.key});
@@ -17,13 +18,22 @@ class CashierPage extends ConsumerStatefulWidget {
 }
 
 class _CashierPageState extends ConsumerState<CashierPage> {
-  final _tableNoController = TextEditingController();
   bool _isDineIn = false;
+  int? _selectedTable;
+  int _tableCount = 0;
 
   @override
-  void dispose() {
-    _tableNoController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    Future.microtask(_loadTableCount);
+  }
+
+  Future<void> _loadTableCount() async {
+    final config =
+        await ref.read(backofficeRepositoryProvider).getMerchantConfig();
+    if (mounted) {
+      setState(() => _tableCount = config.tableCount);
+    }
   }
 
   @override
@@ -55,6 +65,8 @@ class _CashierPageState extends ConsumerState<CashierPage> {
           }
 
           final itemsAsync = ref.watch(orderItemsProvider(order.id));
+          final canCheckout = order.total > 0 &&
+              (!_isDineIn || _selectedTable != null);
 
           return Row(
             children: [
@@ -122,40 +134,71 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                           ],
                           selected: {_isDineIn},
                           onSelectionChanged: (vals) {
-                            setState(() => _isDineIn = vals.first);
+                            final isDineIn = vals.first;
+                            setState(() {
+                              _isDineIn = isDineIn;
+                              if (!isDineIn) _selectedTable = null;
+                            });
                             ref
                                 .read(cashierRepositoryProvider)
                                 .updateOrderType(
                                   order.id,
-                                  vals.first ? 'dineIn' : 'takeOut',
-                                  tableNo: vals.first
-                                      ? _tableNoController.text.trim()
+                                  isDineIn ? 'dineIn' : 'takeOut',
+                                  tableNo: isDineIn && _selectedTable != null
+                                      ? _selectedTable.toString()
                                       : null,
                                 );
                           },
                         ),
                       ),
-                      // Table number (dineIn only)
+                      // Table number dropdown (dineIn only)
                       if (_isDineIn)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: TextField(
-                            controller: _tableNoController,
-                            decoration: const InputDecoration(
-                              labelText: '桌號',
-                              prefixIcon: Icon(Icons.table_restaurant),
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) {
-                              ref
-                                  .read(cashierRepositoryProvider)
-                                  .updateOrderType(
-                                    order.id,
-                                    'dineIn',
-                                    tableNo:
-                                        v.trim().isEmpty ? null : v.trim(),
-                                  );
-                            },
+                          child: _tableCount == 0
+                              ? const Text(
+                                  '請先至後台「商家設定」設定桌數',
+                                  style: TextStyle(color: Colors.orange),
+                                )
+                              : DropdownButtonFormField<int>(
+                                  value: _selectedTable,
+                                  decoration: const InputDecoration(
+                                    labelText: '桌號',
+                                    prefixIcon:
+                                        Icon(Icons.table_restaurant),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  hint: const Text('請選擇桌號'),
+                                  items: List.generate(
+                                    _tableCount,
+                                    (i) => DropdownMenuItem(
+                                      value: i + 1,
+                                      child: Text('${i + 1} 號桌'),
+                                    ),
+                                  ),
+                                  onChanged: (val) {
+                                    setState(() => _selectedTable = val);
+                                    ref
+                                        .read(cashierRepositoryProvider)
+                                        .updateOrderType(
+                                          order.id,
+                                          'dineIn',
+                                          tableNo: val?.toString(),
+                                        );
+                                  },
+                                ),
+                        ),
+                      // Hint when dine-in but no table selected
+                      if (_isDineIn &&
+                          _selectedTable == null &&
+                          _tableCount > 0)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          child: Text(
+                            '請選擇桌號才能結帳',
+                            style: TextStyle(
+                                color: Colors.red, fontSize: 12),
                           ),
                         ),
                       const Divider(),
@@ -214,9 +257,8 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 16),
                                 ),
-                                onPressed: order.total <= 0
-                                    ? null
-                                    : () async {
+                                onPressed: canCheckout
+                                    ? () async {
                                         await ref
                                             .read(cashierRepositoryProvider)
                                             .setOrderPendingPayment(order.id);
@@ -225,7 +267,8 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                                             '/cashier/checkout?orderId=${order.id}',
                                           );
                                         }
-                                      },
+                                      }
+                                    : null,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -277,8 +320,10 @@ class _CashierPageState extends ConsumerState<CashierPage> {
                 'updatedAt': DateTime.now().millisecondsSinceEpoch,
               });
               if (mounted) {
-                setState(() => _isDineIn = false);
-                _tableNoController.clear();
+                setState(() {
+                  _isDineIn = false;
+                  _selectedTable = null;
+                });
               }
             },
             child: const Text('確定'),
