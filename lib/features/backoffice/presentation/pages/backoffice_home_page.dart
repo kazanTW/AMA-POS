@@ -51,6 +51,11 @@ class BackofficeHomePage extends StatelessWidget {
                 icon: Icons.store,
                 onTap: () => context.push('/backoffice/merchant-settings'),
               ),
+              _NavCard(
+                title: '選項群組',
+                icon: Icons.tune,
+                onTap: () => context.push('/backoffice/modifier-groups'),
+              ),
             ],
           ),
         ),

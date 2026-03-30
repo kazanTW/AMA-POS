@@ -37,7 +37,7 @@ class AppDatabase {
     final path = p.join(docsDir.path, 'amapos.sqlite');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -103,7 +103,42 @@ class AppDatabase {
         priceSnapshot INTEGER NOT NULL,
         qty INTEGER NOT NULL DEFAULT 1,
         lineTotal INTEGER NOT NULL DEFAULT 0,
+        modifiersSnapshot TEXT,
         FOREIGN KEY (orderId) REFERENCES orders(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE modifierGroups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE modifierOptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        groupId INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        priceDelta INTEGER NOT NULL DEFAULT 0,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL,
+        FOREIGN KEY (groupId) REFERENCES modifierGroups(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE productModifierGroups (
+        productId INTEGER NOT NULL,
+        groupId INTEGER NOT NULL,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (productId, groupId),
+        FOREIGN KEY (productId) REFERENCES products(id),
+        FOREIGN KEY (groupId) REFERENCES modifierGroups(id)
       )
     ''');
 
@@ -143,6 +178,42 @@ class AppDatabase {
       await db.execute(
         "ALTER TABLE merchantConfigs ADD COLUMN terminalCode TEXT NOT NULL DEFAULT 'A1'",
       );
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE orderItems ADD COLUMN modifiersSnapshot TEXT',
+      );
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS modifierGroups (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          isActive INTEGER NOT NULL DEFAULT 1,
+          sortOrder INTEGER NOT NULL DEFAULT 0,
+          updatedAt INTEGER NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS modifierOptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          groupId INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          priceDelta INTEGER NOT NULL DEFAULT 0,
+          isActive INTEGER NOT NULL DEFAULT 1,
+          sortOrder INTEGER NOT NULL DEFAULT 0,
+          updatedAt INTEGER NOT NULL,
+          FOREIGN KEY (groupId) REFERENCES modifierGroups(id)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS productModifierGroups (
+          productId INTEGER NOT NULL,
+          groupId INTEGER NOT NULL,
+          sortOrder INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (productId, groupId),
+          FOREIGN KEY (productId) REFERENCES products(id),
+          FOREIGN KEY (groupId) REFERENCES modifierGroups(id)
+        )
+      ''');
     }
   }
 
@@ -404,6 +475,168 @@ class AppDatabase {
   Future<void> clearOrderItems(int orderId) async {
     final db = await database;
     await db.delete('orderItems', where: 'orderId = ?', whereArgs: [orderId]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Modifier Groups
+  // -------------------------------------------------------------------------
+
+  Future<List<ModifierGroup>> getAllModifierGroups() async {
+    final db = await database;
+    final maps = await db.query('modifierGroups', orderBy: 'sortOrder ASC, name ASC');
+    return maps.map(ModifierGroup.fromMap).toList();
+  }
+
+  Future<int> insertModifierGroup(Map<String, dynamic> values) async {
+    final db = await database;
+    return db.insert('modifierGroups', values);
+  }
+
+  Future<int> updateModifierGroup(int id, Map<String, dynamic> values) async {
+    final db = await database;
+    return db.update('modifierGroups', values, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteModifierGroup(int id) async {
+    final db = await database;
+    await db.delete('modifierOptions', where: 'groupId = ?', whereArgs: [id]);
+    await db.delete('productModifierGroups', where: 'groupId = ?', whereArgs: [id]);
+    return db.delete('modifierGroups', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Modifier Options
+  // -------------------------------------------------------------------------
+
+  Future<List<ModifierOption>> getModifierOptionsByGroup(int groupId) async {
+    final db = await database;
+    final maps = await db.query(
+      'modifierOptions',
+      where: 'groupId = ?',
+      whereArgs: [groupId],
+      orderBy: 'sortOrder ASC, name ASC',
+    );
+    return maps.map(ModifierOption.fromMap).toList();
+  }
+
+  Future<int> insertModifierOption(Map<String, dynamic> values) async {
+    final db = await database;
+    return db.insert('modifierOptions', values);
+  }
+
+  Future<int> updateModifierOption(int id, Map<String, dynamic> values) async {
+    final db = await database;
+    return db.update('modifierOptions', values, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteModifierOption(int id) async {
+    final db = await database;
+    return db.delete('modifierOptions', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // -------------------------------------------------------------------------
+  // Product Modifier Group Mappings
+  // -------------------------------------------------------------------------
+
+  Future<List<int>> getGroupIdsForProduct(int productId) async {
+    final db = await database;
+    final maps = await db.query(
+      'productModifierGroups',
+      where: 'productId = ?',
+      whereArgs: [productId],
+      orderBy: 'sortOrder ASC',
+    );
+    return maps.map((m) => m['groupId'] as int).toList();
+  }
+
+  Future<void> setProductModifierGroups(
+      int productId, List<int> groupIds) async {
+    final db = await database;
+    await db.delete('productModifierGroups',
+        where: 'productId = ?', whereArgs: [productId]);
+    for (var i = 0; i < groupIds.length; i++) {
+      await db.insert('productModifierGroups', {
+        'productId': productId,
+        'groupId': groupIds[i],
+        'sortOrder': i,
+      });
+    }
+  }
+
+  /// Returns active modifier groups (with their active options) for a product.
+  Future<List<ModifierGroupWithOptions>> getModifierGroupsForProduct(
+      int productId) async {
+    final db = await database;
+    final mappings = await db.query(
+      'productModifierGroups',
+      where: 'productId = ?',
+      whereArgs: [productId],
+      orderBy: 'sortOrder ASC',
+    );
+    final result = <ModifierGroupWithOptions>[];
+    for (final m in mappings) {
+      final groupId = m['groupId'] as int;
+      final groupMaps = await db.query(
+        'modifierGroups',
+        where: 'id = ? AND isActive = 1',
+        whereArgs: [groupId],
+      );
+      if (groupMaps.isEmpty) continue;
+      final group = ModifierGroup.fromMap(groupMaps.first);
+      final optionMaps = await db.query(
+        'modifierOptions',
+        where: 'groupId = ? AND isActive = 1',
+        whereArgs: [groupId],
+        orderBy: 'sortOrder ASC, name ASC',
+      );
+      final options = optionMaps.map(ModifierOption.fromMap).toList();
+      result.add(ModifierGroupWithOptions(group: group, options: options));
+    }
+    return result;
+  }
+
+  // Streams for modifier groups
+
+  Stream<List<ModifierGroup>> watchAllModifierGroups() {
+    late StreamController<List<ModifierGroup>> controller;
+    Timer? timer;
+
+    controller = StreamController<List<ModifierGroup>>(
+      onListen: () async {
+        controller.add(await getAllModifierGroups());
+        timer = Timer.periodic(const Duration(seconds: 1), (_) async {
+          if (!controller.isClosed) {
+            controller.add(await getAllModifierGroups());
+          }
+        });
+      },
+      onCancel: () {
+        timer?.cancel();
+        controller.close();
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<List<ModifierOption>> watchModifierOptionsByGroup(int groupId) {
+    late StreamController<List<ModifierOption>> controller;
+    Timer? timer;
+
+    controller = StreamController<List<ModifierOption>>(
+      onListen: () async {
+        controller.add(await getModifierOptionsByGroup(groupId));
+        timer = Timer.periodic(const Duration(seconds: 1), (_) async {
+          if (!controller.isClosed) {
+            controller.add(await getModifierOptionsByGroup(groupId));
+          }
+        });
+      },
+      onCancel: () {
+        timer?.cancel();
+        controller.close();
+      },
+    );
+    return controller.stream;
   }
 
   // -------------------------------------------------------------------------

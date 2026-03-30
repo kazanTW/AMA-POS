@@ -194,6 +194,7 @@ class OrderItem {
   final int priceSnapshot;
   final int qty;
   final int lineTotal;
+  final String? modifiersSnapshot;
 
   const OrderItem({
     required this.id,
@@ -203,6 +204,7 @@ class OrderItem {
     required this.priceSnapshot,
     required this.qty,
     required this.lineTotal,
+    this.modifiersSnapshot,
   });
 
   factory OrderItem.fromMap(Map<String, dynamic> map) => OrderItem(
@@ -213,6 +215,7 @@ class OrderItem {
         priceSnapshot: map['priceSnapshot'] as int,
         qty: map['qty'] as int,
         lineTotal: map['lineTotal'] as int,
+        modifiersSnapshot: map['modifiersSnapshot'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -223,6 +226,7 @@ class OrderItem {
         'priceSnapshot': priceSnapshot,
         'qty': qty,
         'lineTotal': lineTotal,
+        'modifiersSnapshot': modifiersSnapshot,
       };
 
   OrderItem copyWith({
@@ -233,6 +237,7 @@ class OrderItem {
     int? priceSnapshot,
     int? qty,
     int? lineTotal,
+    Object? modifiersSnapshot = _sentinel,
   }) =>
       OrderItem(
         id: id ?? this.id,
@@ -243,6 +248,9 @@ class OrderItem {
         priceSnapshot: priceSnapshot ?? this.priceSnapshot,
         qty: qty ?? this.qty,
         lineTotal: lineTotal ?? this.lineTotal,
+        modifiersSnapshot: modifiersSnapshot == _sentinel
+            ? this.modifiersSnapshot
+            : modifiersSnapshot as String?,
       );
 }
 
@@ -383,6 +391,151 @@ class MerchantConfig {
         'terminalCode': terminalCode,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
       };
+}
+
+class ModifierGroup {
+  final int id;
+  final String name;
+  final bool isActive;
+  final int sortOrder;
+  final DateTime updatedAt;
+
+  const ModifierGroup({
+    required this.id,
+    required this.name,
+    required this.isActive,
+    required this.sortOrder,
+    required this.updatedAt,
+  });
+
+  factory ModifierGroup.fromMap(Map<String, dynamic> map) => ModifierGroup(
+        id: map['id'] as int,
+        name: map['name'] as String,
+        isActive: (map['isActive'] as int) == 1,
+        sortOrder: map['sortOrder'] as int,
+        updatedAt:
+            DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int),
+      );
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'isActive': isActive ? 1 : 0,
+        'sortOrder': sortOrder,
+        'updatedAt': updatedAt.millisecondsSinceEpoch,
+      };
+
+  ModifierGroup copyWith({
+    int? id,
+    String? name,
+    bool? isActive,
+    int? sortOrder,
+    DateTime? updatedAt,
+  }) =>
+      ModifierGroup(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        isActive: isActive ?? this.isActive,
+        sortOrder: sortOrder ?? this.sortOrder,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+}
+
+class ModifierOption {
+  final int id;
+  final int groupId;
+  final String name;
+  final int priceDelta;
+  final bool isActive;
+  final int sortOrder;
+  final DateTime updatedAt;
+
+  const ModifierOption({
+    required this.id,
+    required this.groupId,
+    required this.name,
+    required this.priceDelta,
+    required this.isActive,
+    required this.sortOrder,
+    required this.updatedAt,
+  });
+
+  factory ModifierOption.fromMap(Map<String, dynamic> map) => ModifierOption(
+        id: map['id'] as int,
+        groupId: map['groupId'] as int,
+        name: map['name'] as String,
+        priceDelta: map['priceDelta'] as int,
+        isActive: (map['isActive'] as int) == 1,
+        sortOrder: map['sortOrder'] as int,
+        updatedAt:
+            DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int),
+      );
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'groupId': groupId,
+        'name': name,
+        'priceDelta': priceDelta,
+        'isActive': isActive ? 1 : 0,
+        'sortOrder': sortOrder,
+        'updatedAt': updatedAt.millisecondsSinceEpoch,
+      };
+
+  ModifierOption copyWith({
+    int? id,
+    int? groupId,
+    String? name,
+    int? priceDelta,
+    bool? isActive,
+    int? sortOrder,
+    DateTime? updatedAt,
+  }) =>
+      ModifierOption(
+        id: id ?? this.id,
+        groupId: groupId ?? this.groupId,
+        name: name ?? this.name,
+        priceDelta: priceDelta ?? this.priceDelta,
+        isActive: isActive ?? this.isActive,
+        sortOrder: sortOrder ?? this.sortOrder,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+}
+
+/// Represents a modifier group linked to a product.
+class ProductModifierGroup {
+  final int productId;
+  final int groupId;
+  final int sortOrder;
+
+  const ProductModifierGroup({
+    required this.productId,
+    required this.groupId,
+    required this.sortOrder,
+  });
+
+  factory ProductModifierGroup.fromMap(Map<String, dynamic> map) =>
+      ProductModifierGroup(
+        productId: map['productId'] as int,
+        groupId: map['groupId'] as int,
+        sortOrder: map['sortOrder'] as int,
+      );
+
+  Map<String, dynamic> toMap() => {
+        'productId': productId,
+        'groupId': groupId,
+        'sortOrder': sortOrder,
+      };
+}
+
+/// A modifier group together with its active options; used at order time.
+class ModifierGroupWithOptions {
+  final ModifierGroup group;
+  final List<ModifierOption> options;
+
+  const ModifierGroupWithOptions({
+    required this.group,
+    required this.options,
+  });
 }
 
 // Sentinel value for copyWith optional nullable fields

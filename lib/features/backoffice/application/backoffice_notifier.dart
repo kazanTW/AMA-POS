@@ -14,3 +14,14 @@ final allProductsProvider = StreamProvider<List<Product>>((ref) {
 final allShiftsProvider = StreamProvider<List<Shift>>((ref) {
   return ref.watch(backofficeRepositoryProvider).watchAllShifts();
 });
+
+final allModifierGroupsProvider = StreamProvider<List<ModifierGroup>>((ref) {
+  return ref.watch(backofficeRepositoryProvider).watchAllModifierGroups();
+});
+
+final modifierOptionsByGroupProvider =
+    StreamProvider.family<List<ModifierOption>, int>((ref, groupId) {
+  return ref
+      .watch(backofficeRepositoryProvider)
+      .watchModifierOptionsByGroup(groupId);
+});
