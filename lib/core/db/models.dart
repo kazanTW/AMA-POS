@@ -116,6 +116,8 @@ class Order {
   final int subtotal;
   final int total;
   final int? shiftId;
+  /// Optional label (桌號/備註) used as the hold/switch identifier.
+  final String? holdLabel;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -128,9 +130,13 @@ class Order {
     required this.subtotal,
     required this.total,
     this.shiftId,
+    this.holdLabel,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Whether the order is editable (not yet paid or voided).
+  bool get isUnpaid => status == 'open' || status == 'pendingPayment';
 
   factory Order.fromMap(Map<String, dynamic> map) => Order(
         id: map['id'] as int,
@@ -141,6 +147,7 @@ class Order {
         subtotal: map['subtotal'] as int,
         total: map['total'] as int,
         shiftId: map['shiftId'] as int?,
+        holdLabel: map['holdLabel'] as String?,
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
         updatedAt:
@@ -156,6 +163,7 @@ class Order {
         'subtotal': subtotal,
         'total': total,
         'shiftId': shiftId,
+        'holdLabel': holdLabel,
         'createdAt': createdAt.millisecondsSinceEpoch,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
       };
@@ -169,6 +177,7 @@ class Order {
     int? subtotal,
     int? total,
     Object? shiftId = _sentinel,
+    Object? holdLabel = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) =>
@@ -181,6 +190,8 @@ class Order {
         subtotal: subtotal ?? this.subtotal,
         total: total ?? this.total,
         shiftId: shiftId == _sentinel ? this.shiftId : shiftId as int?,
+        holdLabel:
+            holdLabel == _sentinel ? this.holdLabel : holdLabel as String?,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

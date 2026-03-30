@@ -17,6 +17,10 @@ class CashierRepository {
 
   Stream<Order?> watchActiveOrder() => _db.watchActiveOrder();
 
+  Stream<Order?> watchOrderById(int id) => _db.watchOrderById(id);
+
+  Stream<List<Order>> watchUnpaidOrders() => _db.watchUnpaidOrders();
+
   Stream<List<OrderItem>> watchOrderItems(int orderId) =>
       _db.watchOrderItems(orderId);
 
@@ -30,10 +34,10 @@ class CashierRepository {
           int productId) =>
       _db.getModifierGroupsForProduct(productId);
 
-  Future<Order?> getOrCreateOrder() async {
-    final existing = await _db.getActiveOrder();
-    if (existing != null) return existing;
+  Future<List<Order>> getUnpaidOrders() => _db.getUnpaidOrders();
 
+  /// Creates a brand-new unpaid order and returns it.
+  Future<Order> createNewOrder() async {
     final now = DateTime.now();
     final todayOrders = await _db.getPaidOrdersByDate(now);
     final seq = todayOrders.length + 1;
@@ -52,7 +56,15 @@ class CashierRepository {
       'createdAt': now.millisecondsSinceEpoch,
       'updatedAt': now.millisecondsSinceEpoch,
     });
-    return _db.getOrderById(id);
+    return (await _db.getOrderById(id))!;
+  }
+
+  /// Finds an existing unpaid order or creates a new one.
+  /// Kept for backward compatibility; prefer [createNewOrder] for new flows.
+  Future<Order?> getOrCreateOrder() async {
+    final existing = await _db.getActiveOrder();
+    if (existing != null) return existing;
+    return createNewOrder();
   }
 
   Future<void> addItemToOrder(
@@ -127,6 +139,23 @@ class CashierRepository {
     await _db.updateOrder(orderId, {
       'type': type,
       'tableNo': tableNo,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  /// Sets the hold label (桌號/備註) for an unpaid order.
+  Future<void> setHoldLabel(int orderId, String? label) async {
+    await _db.updateOrder(orderId, {
+      'holdLabel': label,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  /// Voids an unpaid order (clears its items and marks it voided).
+  Future<void> voidOrder(int orderId) async {
+    await _db.clearOrderItems(orderId);
+    await _db.updateOrder(orderId, {
+      'status': 'voided',
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }

@@ -37,7 +37,7 @@ class AppDatabase {
     final path = p.join(docsDir.path, 'amapos.sqlite');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -88,6 +88,7 @@ class AppDatabase {
         subtotal INTEGER NOT NULL DEFAULT 0,
         total INTEGER NOT NULL DEFAULT 0,
         shiftId INTEGER,
+        holdLabel TEXT,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
         FOREIGN KEY (shiftId) REFERENCES shifts(id)
@@ -219,6 +220,11 @@ class AppDatabase {
     if (oldVersion < 5) {
       await db.execute(
         'ALTER TABLE orderItems ADD COLUMN modifierTotal INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE orders ADD COLUMN holdLabel TEXT',
       );
     }
   }
@@ -424,8 +430,17 @@ class AppDatabase {
     return db.update('orders', values, where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Order>> getPaidOrdersByDate(DateTime date) async {
+  Future<List<Order>> getUnpaidOrders() async {
     final db = await database;
+    final maps = await db.query(
+      'orders',
+      where: "status IN ('open', 'pendingPayment')",
+      orderBy: 'updatedAt DESC',
+    );
+    return maps.map(Order.fromMap).toList();
+  }
+
+  Future<List<Order>> getPaidOrdersByDate(DateTime date) async {    final db = await database;
     final start = DateTime(date.year, date.month, date.day)
         .millisecondsSinceEpoch;
     final end = DateTime(date.year, date.month, date.day + 1)
@@ -728,6 +743,57 @@ class AppDatabase {
         timer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
           if (!controller.isClosed) {
             controller.add(await getOrderItems(orderId));
+          }
+        });
+      },
+      onCancel: () {
+        timer?.cancel();
+        controller.close();
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<Order?> watchOrderById(int id) {
+    late StreamController<Order?> controller;
+    Timer? timer;
+
+    controller = StreamController<Order?>(
+      onListen: () async {
+        controller.add(await getOrderById(id));
+        timer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
+          if (!controller.isClosed) {
+            controller.add(await getOrderById(id));
+          }
+        });
+      },
+      onCancel: () {
+        timer?.cancel();
+        controller.close();
+      },
+    );
+    return controller.stream.distinct((a, b) {
+      if (a == null && b == null) return true;
+      if (a == null || b == null) return false;
+      return a.id == b.id &&
+          a.status == b.status &&
+          a.total == b.total &&
+          a.type == b.type &&
+          a.tableNo == b.tableNo &&
+          a.holdLabel == b.holdLabel;
+    });
+  }
+
+  Stream<List<Order>> watchUnpaidOrders() {
+    late StreamController<List<Order>> controller;
+    Timer? timer;
+
+    controller = StreamController<List<Order>>(
+      onListen: () async {
+        controller.add(await getUnpaidOrders());
+        timer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
+          if (!controller.isClosed) {
+            controller.add(await getUnpaidOrders());
           }
         });
       },
