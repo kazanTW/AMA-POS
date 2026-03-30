@@ -5,6 +5,8 @@ import '../features/backoffice/presentation/pages/backoffice_home_page.dart';
 import '../features/backoffice/presentation/pages/categories_page.dart';
 import '../features/backoffice/presentation/pages/import_export_page.dart';
 import '../features/backoffice/presentation/pages/merchant_settings_page.dart';
+import '../features/backoffice/presentation/pages/modifier_groups_page.dart';
+import '../features/backoffice/presentation/pages/modifier_options_page.dart';
 import '../features/backoffice/presentation/pages/products_page.dart';
 import '../features/backoffice/presentation/pages/reports_page.dart';
 import '../features/backoffice/presentation/pages/shifts_page.dart';
@@ -53,6 +55,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'merchant-settings',
             builder: (context, state) => const MerchantSettingsPage(),
+          ),
+          GoRoute(
+            path: 'modifier-groups',
+            builder: (context, state) => const ModifierGroupsPage(),
+            routes: [
+              GoRoute(
+                path: ':groupId/options',
+                builder: (context, state) {
+                  final groupId =
+                      int.parse(state.pathParameters['groupId']!);
+                  final groupName =
+                      state.extra as String? ?? '選項群組';
+                  return ModifierOptionsPage(
+                    groupId: groupId,
+                    groupName: groupName,
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

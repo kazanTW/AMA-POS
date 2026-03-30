@@ -24,6 +24,10 @@ class CashierRepository {
   Stream<List<Product>> watchActiveProducts({int? categoryId}) =>
       _db.watchActiveProducts(categoryId: categoryId);
 
+  Future<List<ModifierGroupWithOptions>> getModifierGroupsForProduct(
+          int productId) =>
+      _db.getModifierGroupsForProduct(productId);
+
   Future<Order?> getOrCreateOrder() async {
     final existing = await _db.getActiveOrder();
     if (existing != null) return existing;
@@ -49,26 +53,37 @@ class CashierRepository {
     return _db.getOrderById(id);
   }
 
-  Future<void> addItemToOrder(int orderId, Product product) async {
+  Future<void> addItemToOrder(
+    int orderId,
+    Product product, {
+    String? modifiersSnapshot,
+  }) async {
     final items = await _db.getOrderItems(orderId);
-    final existing =
-        items.where((i) => i.productId == product.id).firstOrNull;
-    if (existing != null) {
-      final newQty = existing.qty + 1;
-      await _db.updateOrderItem(existing.id, {
-        'qty': newQty,
-        'lineTotal': product.price * newQty,
-      });
-    } else {
-      await _db.addOrderItem({
-        'orderId': orderId,
-        'productId': product.id,
-        'nameSnapshot': product.name,
-        'priceSnapshot': product.price,
-        'qty': 1,
-        'lineTotal': product.price,
-      });
+    // Only merge items that have no modifiers AND have the same productId
+    if (modifiersSnapshot == null) {
+      final existing = items
+          .where((i) =>
+              i.productId == product.id && i.modifiersSnapshot == null)
+          .firstOrNull;
+      if (existing != null) {
+        final newQty = existing.qty + 1;
+        await _db.updateOrderItem(existing.id, {
+          'qty': newQty,
+          'lineTotal': product.price * newQty,
+        });
+        await _recalcOrder(orderId);
+        return;
+      }
     }
+    await _db.addOrderItem({
+      'orderId': orderId,
+      'productId': product.id,
+      'nameSnapshot': product.name,
+      'priceSnapshot': product.price,
+      'qty': 1,
+      'lineTotal': product.price,
+      'modifiersSnapshot': modifiersSnapshot,
+    });
     await _recalcOrder(orderId);
   }
 

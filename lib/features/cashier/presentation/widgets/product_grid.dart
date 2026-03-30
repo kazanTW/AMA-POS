@@ -5,6 +5,7 @@ import '../../../../core/db/models.dart';
 import '../../../../core/utils/money.dart';
 import '../../application/cashier_notifier.dart';
 import '../../data/cashier_repository.dart';
+import 'modifier_dialog.dart';
 
 class ProductGrid extends ConsumerWidget {
   const ProductGrid({super.key, required this.orderId});
@@ -47,11 +48,7 @@ class _ProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: InkWell(
-        onTap: () {
-          ref
-              .read(cashierRepositoryProvider)
-              .addItemToOrder(orderId, product);
-        },
+        onTap: () => _onTap(context, ref),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -79,5 +76,24 @@ class _ProductCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _onTap(BuildContext context, WidgetRef ref) async {
+    final repo = ref.read(cashierRepositoryProvider);
+    final groups = await repo.getModifierGroupsForProduct(product.id);
+
+    if (groups.isEmpty) {
+      // No modifiers – add directly (original behaviour).
+      await repo.addItemToOrder(orderId, product);
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    // Show modifier dialog.
+    final snapshot = await showModifierDialog(context, product.name, groups);
+    if (snapshot == null) return; // User cancelled.
+
+    await repo.addItemToOrder(orderId, product, modifiersSnapshot: snapshot);
   }
 }

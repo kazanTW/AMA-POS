@@ -46,7 +46,7 @@ class BackofficeRepository {
   // ---- Products ----
   Stream<List<Product>> watchAllProducts() => _db.watchAllProducts();
 
-  Future<void> saveProduct({
+  Future<int> saveProduct({
     int? id,
     required String name,
     required int price,
@@ -55,7 +55,7 @@ class BackofficeRepository {
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (id == null) {
-      await _db.insertProduct({
+      return _db.insertProduct({
         'name': name,
         'price': price,
         'categoryId': categoryId,
@@ -71,10 +71,77 @@ class BackofficeRepository {
         'isActive': isActive ? 1 : 0,
         'updatedAt': now,
       });
+      return id;
     }
   }
 
   Future<void> deleteProduct(int id) => _db.deleteProduct(id);
+
+  // ---- Modifier Groups ----
+  Stream<List<ModifierGroup>> watchAllModifierGroups() =>
+      _db.watchAllModifierGroups();
+
+  Future<void> saveModifierGroup({
+    int? id,
+    required String name,
+    required bool isActive,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (id == null) {
+      await _db.insertModifierGroup({
+        'name': name,
+        'isActive': isActive ? 1 : 0,
+        'sortOrder': 0,
+        'updatedAt': now,
+      });
+    } else {
+      await _db.updateModifierGroup(id, {
+        'name': name,
+        'isActive': isActive ? 1 : 0,
+        'updatedAt': now,
+      });
+    }
+  }
+
+  Future<void> deleteModifierGroup(int id) => _db.deleteModifierGroup(id);
+
+  // ---- Modifier Options ----
+  Stream<List<ModifierOption>> watchModifierOptionsByGroup(int groupId) =>
+      _db.watchModifierOptionsByGroup(groupId);
+
+  Future<void> saveModifierOption({
+    int? id,
+    required int groupId,
+    required String name,
+    required bool isActive,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (id == null) {
+      await _db.insertModifierOption({
+        'groupId': groupId,
+        'name': name,
+        'priceDelta': 0,
+        'isActive': isActive ? 1 : 0,
+        'sortOrder': 0,
+        'updatedAt': now,
+      });
+    } else {
+      await _db.updateModifierOption(id, {
+        'name': name,
+        'isActive': isActive ? 1 : 0,
+        'updatedAt': now,
+      });
+    }
+  }
+
+  Future<void> deleteModifierOption(int id) => _db.deleteModifierOption(id);
+
+  // ---- Product Modifier Group Mappings ----
+  Future<List<int>> getGroupIdsForProduct(int productId) =>
+      _db.getGroupIdsForProduct(productId);
+
+  Future<void> setProductModifierGroups(int productId, List<int> groupIds) =>
+      _db.setProductModifierGroups(productId, groupIds);
 
   // ---- Shifts ----
   Stream<List<Shift>> watchAllShifts() => _db.watchAllShifts();
