@@ -221,4 +221,61 @@ class BackofficeRepository {
     if (path == null) return null;
     return File(path).readAsString();
   }
+
+  /// Lets the user pick a SQLite file (any filename), backs up the current DB,
+  /// then replaces it with the chosen file.
+  ///
+  /// Returns the backup file path on success, `null` if the user cancelled the
+  /// picker, or throws on error.
+  Future<String?> importSqliteDatabase() async {
+    // 1. Pick file (sqlite / db, or any extension – allow all so the user can
+    //    pick a file named amapos.sqlite even if the picker filters differ by
+    //    platform).
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+    );
+    if (result == null || result.files.isEmpty) return null;
+    final srcPath = result.files.first.path;
+    if (srcPath == null) return null;
+
+    // 2. Minimal validation: check the SQLite magic header.
+    final src = File(srcPath);
+    final raf = await src.open();
+    late List<int> headerBytes;
+    try {
+      headerBytes = await raf.read(16);
+    } finally {
+      await raf.close();
+    }
+    // "SQLite format 3\0"
+    const sqliteMagic = <int>[
+      0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66,
+      0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00,
+    ];
+    final valid = headerBytes.length >= sqliteMagic.length &&
+        Iterable<int>.generate(sqliteMagic.length)
+            .every((i) => headerBytes[i] == sqliteMagic[i]);
+    if (!valid) throw Exception('所選檔案不是有效的 SQLite 資料庫');
+
+    // 3. Determine canonical DB path.
+    final docsDir = await getApplicationDocumentsDirectory();
+    final destPath = '${docsDir.path}/amapos.sqlite';
+    final dest = File(destPath);
+
+    // 4. Back up existing DB if present.
+    String backupPath = '';
+    if (await dest.exists()) {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      backupPath = '$destPath.bak_$ts';
+      await dest.copy(backupPath);
+    }
+
+    // 5. Close DB connection so the file is not locked.
+    await _db.closeAndReset();
+
+    // 6. Copy selected file to canonical path.
+    await src.copy(destPath);
+
+    return backupPath;
+  }
 }

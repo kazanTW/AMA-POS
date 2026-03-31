@@ -43,6 +43,15 @@ class AppDatabase {
     );
   }
 
+  /// Closes the database connection and resets the cached instance so the next
+  /// access to [database] will reopen (or pick up) the file at the canonical
+  /// path.  Call this before replacing the on-disk SQLite file.
+  Future<void> closeAndReset() async {
+    final db = _db;
+    await db?.close();
+    _db = null;
+  }
+
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE categories (
