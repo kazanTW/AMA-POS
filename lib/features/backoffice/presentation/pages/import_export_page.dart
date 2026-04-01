@@ -166,20 +166,60 @@ class ImportExportPage extends ConsumerWidget {
     if (!context.mounted) return;
 
     try {
-      final backupPath =
+      final importResult =
           await ref.read(backofficeRepositoryProvider).importSqliteDatabase();
-      if (backupPath == null) return; // user cancelled the picker
-      if (context.mounted) {
-        final msg = backupPath.isNotEmpty
-            ? '匯入完成，請重啟 App\n（備份：$backupPath）'
-            : '匯入完成，請重啟 App';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 6),
+      if (importResult == null) return; // user cancelled the picker
+      if (!context.mounted) return;
+
+      // Show a blocking result dialog with verification counts.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('匯入完成'),
+            ],
           ),
-        );
-      }
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '⚠️ 請完全關閉並重新啟動 App 後，匯入的資料才會生效。',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('驗證結果：',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('・分類數：${importResult.categoryCount} 筆'),
+              Text('・啟用商品數：${importResult.productCount} 筆'),
+              if (importResult.backupPath.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('備份路徑：',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                SelectableText(
+                  importResult.backupPath,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('我知道了，我會重啟 App'),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
