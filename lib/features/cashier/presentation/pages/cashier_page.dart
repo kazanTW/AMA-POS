@@ -435,34 +435,60 @@ class _CashierPageState extends ConsumerState<CashierPage> {
         TextEditingController(text: order.holdLabel ?? '');
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('掛單／改名'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '桌號／備註',
-            hintText: '例如：1號桌、外帶王先生',
-            border: OutlineInputBorder(),
+      builder: (dialogCtx) {
+        var isSaving = false;
+        return StatefulBuilder(
+          builder: (dialogCtx, setState) => AlertDialog(
+            title: const Text('掛單／改名'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '桌號／備註',
+                hintText: '例如：1號桌、外帶王先生',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final label = controller.text.trim();
+                        setState(() => isSaving = true);
+                        try {
+                          await ref
+                              .read(cashierRepositoryProvider)
+                              .setHoldLabel(
+                                  order.id, label.isEmpty ? null : label);
+                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('儲存失敗：$e')),
+                            );
+                          }
+                          if (dialogCtx.mounted) {
+                            setState(() => isSaving = false);
+                          }
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('儲存'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final label = controller.text.trim();
-              Navigator.pop(ctx);
-              await ref
-                  .read(cashierRepositoryProvider)
-                  .setHoldLabel(order.id, label.isEmpty ? null : label);
-            },
-            child: const Text('儲存'),
-          ),
-        ],
-      ),
+        );
+      },
     ).whenComplete(() => controller.dispose());
   }
 
@@ -474,33 +500,62 @@ class _CashierPageState extends ConsumerState<CashierPage> {
       BuildContext context, WidgetRef ref, int orderId) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('刪除未結帳單'),
-        content: const Text('確定要刪除目前的未結帳單嗎？此操作無法復原。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+      builder: (ctx) {
+        var isDeleting = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('刪除未結帳單'),
+            content: const Text('確定要刪除目前的未結帳單嗎？此操作無法復原。'),
+            actions: [
+              TextButton(
+                onPressed: isDeleting ? null : () => Navigator.pop(ctx),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: isDeleting
+                    ? null
+                    : () async {
+                        setDialogState(() => isDeleting = true);
+                        try {
+                          await ref
+                              .read(cashierRepositoryProvider)
+                              .deleteOrder(orderId);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ref.read(currentOrderIdProvider.notifier).state =
+                                null;
+                            setState(() {
+                              _isDineIn = false;
+                              _selectedTable = null;
+                            });
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('刪除失敗：$e')),
+                            );
+                          }
+                          if (ctx.mounted) {
+                            setDialogState(() => isDeleting = false);
+                          }
+                        }
+                      },
+                child: isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white)),
+                      )
+                    : const Text('刪除'),
+              ),
+            ],
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref
-                  .read(cashierRepositoryProvider)
-                  .deleteOrder(orderId);
-              ref.read(currentOrderIdProvider.notifier).state = null;
-              if (mounted) {
-                setState(() {
-                  _isDineIn = false;
-                  _selectedTable = null;
-                });
-              }
-            },
-            child: const Text('刪除'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
