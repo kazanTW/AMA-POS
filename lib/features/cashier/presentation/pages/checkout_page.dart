@@ -54,159 +54,166 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               },
             ),
           ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              '訂單品項',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const Divider(),
-                            itemsAsync.when(
-                              loading: () =>
-                                  const CircularProgressIndicator(),
-                              error: (e, _) => Text('$e'),
-                              data: (items) => Column(
-                                children: items
-                                    .map(
-                                      (item) => Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 4),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                  '${item.nameSnapshot} × ${item.qty}'),
-                                            ),
-                                            Text(formatMoney(item.lineTotal)),
-                                          ],
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '訂單品項',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const Divider(),
+                              itemsAsync.when(
+                                loading: () =>
+                                    const CircularProgressIndicator(),
+                                error: (e, _) => Text('$e'),
+                                data: (items) => Column(
+                                  children: items
+                                      .map(
+                                        (item) => Padding(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  vertical: 4),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment
+                                                    .spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                    '${item.nameSnapshot} × ${item.qty}'),
+                                              ),
+                                              Text(formatMoney(
+                                                  item.lineTotal)),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                    .toList(),
+                                      )
+                                      .toList(),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('應付金額',
-                                    style: TextStyle(fontSize: 20)),
-                                Text(
-                                  formatMoney(amountDue),
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
+                      const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('應付金額',
+                                      style: TextStyle(fontSize: 20)),
+                                  Text(
+                                    formatMoney(amountDue),
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _receivedController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: const InputDecoration(
-                                labelText: '收款金額',
-                                prefixText: 'NT\$ ',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 20),
+                                ],
                               ),
-                              style: const TextStyle(fontSize: 24),
-                              onChanged: (v) {
-                                setState(() {
-                                  _amountReceived = int.tryParse(v) ?? 0;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              children: [500, 1000].map((amt) {
-                                return OutlinedButton(
-                                  onPressed: () {
-                                    int newAmt = amt;
-                                    while (newAmt < amountDue) {
-                                      newAmt += amt;
-                                    }
-                                    setState(() {
-                                      _amountReceived = newAmt;
-                                      _receivedController.text =
-                                          newAmt.toString();
-                                    });
-                                  },
-                                  child: Text('NT\$ $amt'),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('找零',
-                                    style: TextStyle(fontSize: 20)),
-                                Text(
-                                  _amountReceived >= amountDue
-                                      ? formatMoney(change)
-                                      : '---',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: _amountReceived >= amountDue
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _receivedController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                decoration: const InputDecoration(
+                                  labelText: '收款金額',
+                                  prefixText: 'NT\$ ',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 20),
                                 ),
-                              ],
-                            ),
-                          ],
+                                style: const TextStyle(fontSize: 24),
+                                onChanged: (v) {
+                                  setState(() {
+                                    _amountReceived =
+                                        int.tryParse(v) ?? 0;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                children: [500, 1000].map((amt) {
+                                  return OutlinedButton(
+                                    onPressed: () {
+                                      int newAmt = amt;
+                                      while (newAmt < amountDue) {
+                                        newAmt += amt;
+                                      }
+                                      setState(() {
+                                        _amountReceived = newAmt;
+                                        _receivedController.text =
+                                            newAmt.toString();
+                                      });
+                                    },
+                                    child: Text('NT\$ $amt'),
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('找零',
+                                      style: TextStyle(fontSize: 20)),
+                                  Text(
+                                    _amountReceived >= amountDue
+                                        ? formatMoney(change)
+                                        : '---',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: _amountReceived >= amountDue
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('確認收款',
-                          style: TextStyle(fontSize: 20)),
-                      style: FilledButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 20),
-                        backgroundColor: Colors.green,
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text('確認收款',
+                            style: TextStyle(fontSize: 20)),
+                        style: FilledButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 20),
+                          backgroundColor: Colors.green,
+                        ),
+                        onPressed: _amountReceived < amountDue
+                            ? null
+                            : () => _confirmPayment(context),
                       ),
-                      onPressed: _amountReceived < amountDue
-                          ? null
-                          : () => _confirmPayment(context),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
