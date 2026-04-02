@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -366,11 +367,18 @@ class AppDatabase {
   // Products
   // -------------------------------------------------------------------------
 
+  /// Returns all active products, optionally filtered by [categoryId].
+  ///
+  /// When [categoryId] is `null` the filter is omitted and **all** active
+  /// products are returned (i.e. the "全部" / "show all" case).  The where
+  /// clause is never `categoryId = NULL` which would always return zero rows.
   Future<List<Product>> getActiveProducts({int? categoryId}) async {
     final db = await database;
+    // Base filter: only active products.
     String where = 'isActive = 1';
     List<Object?> args = [];
     if (categoryId != null) {
+      // Narrow results to the selected category.
       where += ' AND categoryId = ?';
       args.add(categoryId);
     }
@@ -380,6 +388,13 @@ class AppDatabase {
       whereArgs: args.isEmpty ? null : args,
       orderBy: 'sortOrder ASC, name ASC',
     );
+    assert(() {
+      debugPrint(
+        '[AppDatabase] getActiveProducts(categoryId=$categoryId) '
+        '→ ${maps.length} row(s)',
+      );
+      return true;
+    }());
     return maps.map(Product.fromMap).toList();
   }
 

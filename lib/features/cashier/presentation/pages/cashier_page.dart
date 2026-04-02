@@ -62,6 +62,33 @@ class _CashierPageState extends ConsumerState<CashierPage> {
     final categoriesAsync = ref.watch(activeCategoriesProvider);
     final selectedCatId = ref.watch(selectedCategoryIdProvider);
 
+    // Auto-select the first active category when categories load or change.
+    // This ensures products are always visible on first launch / after DB import.
+    ref.listen<AsyncValue<List<Category>>>(activeCategoriesProvider,
+        (_, next) {
+      next.whenData((cats) {
+        if (cats.isEmpty) return;
+        final currentId = ref.read(selectedCategoryIdProvider);
+        final validIds = cats.map((c) => c.id).toSet();
+        if (currentId == null || !validIds.contains(currentId)) {
+          // Defer the state write to after the current build frame so we do
+          // not mutate provider state during a build pass.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            assert(() {
+              debugPrint(
+                '[Cashier] selectedCategoryId ($currentId) invalid or null; '
+                'resetting to first category id=${cats.first.id}',
+              );
+              return true;
+            }());
+            ref.read(selectedCategoryIdProvider.notifier).state =
+                cats.first.id;
+          });
+        }
+      });
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('AMA-POS 櫃台'),

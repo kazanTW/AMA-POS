@@ -18,20 +18,28 @@ class ProductGrid extends ConsumerWidget {
     return productsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (products) => GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 180,
-          childAspectRatio: 1.2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return _ProductCard(product: product);
-        },
-      ),
+      data: (products) {
+        assert(() {
+          debugPrint(
+            '[ProductGrid] categoryId=$categoryId → ${products.length} product(s)',
+          );
+          return true;
+        }());
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 180,
+            childAspectRatio: 1.2,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return _ProductCard(product: product);
+          },
+        );
+      },
     );
   }
 }
