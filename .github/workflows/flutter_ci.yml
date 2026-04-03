@@ -32,11 +32,18 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Tool versions (diagnostics)
+        run: |
+          set -euxo pipefail
+          java -version
+          flutter --version
+          dart --version || true
+
       - name: Flutter pub get
         run: flutter pub get
         working-directory: .
 
-      - name: Flutter analyze
+      - name: Flutter analyze (non-blocking)
         run: flutter analyze || true
         working-directory: .
 
@@ -44,18 +51,36 @@ jobs:
         run: flutter clean
         working-directory: .
 
-      - name: Build debug APK
-        run: flutter build apk --debug -v
+      - name: Build debug APK (capture logs)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          flutter build apk --debug -v 2>&1 | tee flutter-build-debug.log
         working-directory: .
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Gradle assembleDebug (diagnostics)
+      - name: Gradle assembleDebug (diagnostics, capture logs)
         if: failure()
+        shell: bash
         working-directory: android
-        run: ./gradlew :app:assembleDebug --stacktrace --debug
+        run: |
+          set -euxo pipefail
+          ./gradlew :app:assembleDebug --stacktrace --info 2>&1 | tee ../gradle-assembleDebug.log
 
+      # 永遠上傳 log（成功/失敗都要）
+      - name: Upload build logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            flutter-build-debug.log
+            gradle-assembleDebug.log
+          if-no-files-found: warn
+
+      # APK 只有成功才會有；保留你原本的 error 行為
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
