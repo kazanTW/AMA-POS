@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -61,6 +62,29 @@ class _CashierPageState extends ConsumerState<CashierPage> {
     final orderAsync = ref.watch(activeOrderProvider);
     final categoriesAsync = ref.watch(activeCategoriesProvider);
     final selectedCatId = ref.watch(selectedCategoryIdProvider);
+
+    // Auto-select the first category once categories are loaded.
+    // Uses ref.listen + addPostFrameCallback to avoid mutating state during build.
+    ref.listen<AsyncValue<List<Category>>>(activeCategoriesProvider,
+        (_, next) {
+      next.whenData((cats) {
+        if (cats.isEmpty) return;
+        final current = ref.read(selectedCategoryIdProvider);
+        final ids = cats.map((c) => c.id).toSet();
+        if (current == null || !ids.contains(current)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.read(selectedCategoryIdProvider.notifier).state = cats.first.id;
+          });
+        }
+        if (kDebugMode) {
+          debugPrint(
+            '[Cashier] categories=${cats.length} '
+            'selectedCategoryId=$current',
+          );
+        }
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(

@@ -40,6 +40,10 @@ jobs:
         run: flutter analyze || true
         working-directory: .
 
+      - name: Flutter clean
+        run: flutter clean
+        working-directory: .
+
       - name: Build debug APK
         run: flutter build apk --debug -v
         working-directory: .
