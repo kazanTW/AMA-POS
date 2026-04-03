@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/db/models.dart';
+import '../../../../core/db/models.dart' as db;
 import '../../../../core/utils/datetime_utils.dart';
 import '../../../../core/utils/money.dart';
 import '../../application/cashier_notifier.dart';
@@ -65,7 +65,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
 
     // Auto-select the first category once categories are loaded.
     // Uses ref.listen + addPostFrameCallback to avoid mutating state during build.
-    ref.listen<AsyncValue<List<Category>>>(activeCategoriesProvider,
+    ref.listen<AsyncValue<List<db.Category>>>(activeCategoriesProvider,
         (_, next) {
       next.whenData((cats) {
         if (cats.isEmpty) return;
@@ -221,7 +221,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
 
   /// Shown in the right panel when an order is active.
   Widget _buildActiveOrderPanel(
-      BuildContext context, WidgetRef ref, Order order) {
+      BuildContext context, WidgetRef ref, db.Order order) {
     final itemsAsync = ref.watch(orderItemsProvider(order.id));
     final canCheckout =
         order.total > 0 && (!_isDineIn || _selectedTable != null);
@@ -454,7 +454,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   // Hold dialog (掛單/改名)
   // ---------------------------------------------------------------------------
 
-  void _showHoldDialog(BuildContext context, WidgetRef ref, Order order) {
+  void _showHoldDialog(BuildContext context, WidgetRef ref, db.Order order) {
     final controller =
         TextEditingController(text: order.holdLabel ?? '');
     showDialog<void>(
@@ -603,7 +603,7 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   /// Shows the UX guardrail dialog.
   /// Returns true if caller should proceed (Save or Discard was chosen).
   Future<bool> _showGuardDialog(
-      BuildContext context, WidgetRef ref, Order order) async {
+      BuildContext context, WidgetRef ref, db.Order order) async {
     final labelController = TextEditingController();
     final result = await showDialog<_GuardAction>(
       context: context,
@@ -701,7 +701,7 @@ class _GuardDialog extends StatelessWidget {
   });
 
   final TextEditingController labelController;
-  final Order order;
+  final db.Order order;
 
   @override
   Widget build(BuildContext context) {
