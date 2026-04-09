@@ -63,28 +63,29 @@ class _CashierPageState extends ConsumerState<CashierPage> {
     final categoriesAsync = ref.watch(activeCategoriesProvider);
     final selectedCatId = ref.watch(selectedCategoryIdProvider);
 
-    // Auto-select the first category once categories are loaded.
-    // Uses ref.listen + addPostFrameCallback to avoid mutating state during build.
+    // If the currently selected category is deleted/deactivated, reset to
+    // the first available category.  null means "All" and is always valid.
     ref.listen<AsyncValue<List<db.Category>>>(activeCategoriesProvider,
         (_, next) {
       next.whenData((cats) {
         if (cats.isEmpty) return;
         final current = ref.read(selectedCategoryIdProvider);
         final ids = cats.map((c) => c.id).toSet();
-        if (current == null || !ids.contains(current)) {
+        if (current != null && !ids.contains(current)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             ref.read(selectedCategoryIdProvider.notifier).state = cats.first.id;
           });
         }
-        if (kDebugMode) {
-          debugPrint(
-            '[Cashier] categories=${cats.length} '
-            'selectedCategoryId=$current',
-          );
-        }
       });
     });
+
+    if (kDebugMode) {
+      // Log only when selectedCategoryId actually changes.
+      ref.listen<int?>(selectedCategoryIdProvider, (_, next) {
+        debugPrint('[Cashier] selectedCategoryId=$next');
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
