@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +26,8 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   @override
   void initState() {
     super.initState();
+    // Reset category selection to "All" each time the cashier page is opened.
+    ref.read(selectedCategoryIdProvider.notifier).state = null;
     Future.microtask(_loadTableCount);
     Future.microtask(_restoreActiveOrder);
   }
@@ -79,13 +80,6 @@ class _CashierPageState extends ConsumerState<CashierPage> {
         }
       });
     });
-
-    if (kDebugMode) {
-      // Log only when selectedCategoryId actually changes.
-      ref.listen<int?>(selectedCategoryIdProvider, (_, next) {
-        debugPrint('[Cashier] selectedCategoryId=$next');
-      });
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -605,21 +599,15 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   /// Returns true if caller should proceed (Save or Discard was chosen).
   Future<bool> _showGuardDialog(
       BuildContext context, WidgetRef ref, db.Order order) async {
-    final labelController = TextEditingController();
-    final result = await showDialog<_GuardAction>(
+    final result = await showDialog<_GuardDialogResult>(
       context: context,
-      builder: (ctx) => _GuardDialog(
-        labelController: labelController,
-        order: order,
-      ),
+      builder: (ctx) => _GuardDialog(order: order),
     );
-    labelController.dispose();
 
-    if (result == null || result == _GuardAction.cancel) return false;
+    if (result == null || result.action == _GuardAction.cancel) return false;
 
-    if (result == _GuardAction.save) {
-      // The dialog already set the label via the controller; apply it.
-      final label = labelController.text.trim();
+    if (result.action == _GuardAction.save) {
+      final label = result.label.trim();
       await ref
           .read(cashierRepositoryProvider)
           .setHoldLabel(order.id, label.isEmpty ? null : label);
@@ -627,16 +615,37 @@ class _CashierPageState extends ConsumerState<CashierPage> {
     }
 
     // Discard: hard-delete the current order.
-    if (result == _GuardAction.discard) {
-      await ref.read(cashierRepositoryProvider).deleteOrder(order.id);
-      ref.read(currentOrderIdProvider.notifier).state = null;
-      if (mounted) {
-        setState(() {
-          _isDineIn = false;
-          _selectedTable = null;
-        });
+    if (result.action == _GuardAction.discard) {
+      if (!mounted) {
+        // Widget was unmounted while dialog was open – cannot safely update
+        // state.  Show a user-visible message if possible and bail out.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('目前無法捨棄訂單，請直接取消或掛單。')),
+          );
+        }
+        return false;
       }
-      return true;
+      try {
+        await ref.read(cashierRepositoryProvider).deleteOrder(order.id);
+        ref.read(currentOrderIdProvider.notifier).state = null;
+        if (mounted) {
+          setState(() {
+            _isDineIn = false;
+            _selectedTable = null;
+          });
+        }
+        return true;
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('目前無法捨棄訂單，請直接取消或掛單。')),
+          );
+        }
+        return false;
+      }
     }
 
     return false;
@@ -695,14 +704,37 @@ class _CashierPageState extends ConsumerState<CashierPage> {
 
 enum _GuardAction { save, discard, cancel }
 
-class _GuardDialog extends StatelessWidget {
-  const _GuardDialog({
-    required this.labelController,
-    required this.order,
-  });
+/// Return value from [_GuardDialog]: the chosen action plus the label text
+/// the user may have typed (only meaningful for [_GuardAction.save]).
+class _GuardDialogResult {
+  const _GuardDialogResult(this.action, this.label);
+  final _GuardAction action;
+  final String label;
+}
 
-  final TextEditingController labelController;
+class _GuardDialog extends StatefulWidget {
+  const _GuardDialog({required this.order});
+
   final db.Order order;
+
+  @override
+  State<_GuardDialog> createState() => _GuardDialogState();
+}
+
+class _GuardDialogState extends State<_GuardDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -715,7 +747,7 @@ class _GuardDialog extends StatelessWidget {
           const Text('目前的未結帳單尚未設定桌號／備註，要先儲存還是捨棄？'),
           const SizedBox(height: 12),
           TextField(
-            controller: labelController,
+            controller: _controller,
             autofocus: true,
             decoration: const InputDecoration(
               labelText: '桌號／備註（選填）',
@@ -727,16 +759,20 @@ class _GuardDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context, _GuardAction.cancel),
+          onPressed: () => Navigator.pop(
+              context, const _GuardDialogResult(_GuardAction.cancel, '')),
           child: const Text('取消'),
         ),
         OutlinedButton(
           style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-          onPressed: () => Navigator.pop(context, _GuardAction.discard),
+          onPressed: () => Navigator.pop(
+              context, const _GuardDialogResult(_GuardAction.discard, '')),
           child: const Text('捨棄'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _GuardAction.save),
+          onPressed: () => Navigator.pop(
+              context,
+              _GuardDialogResult(_GuardAction.save, _controller.text)),
           child: const Text('儲存掛單'),
         ),
       ],
