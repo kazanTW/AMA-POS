@@ -449,66 +449,27 @@ class _CashierPageState extends ConsumerState<CashierPage> {
   // Hold dialog (掛單/改名)
   // ---------------------------------------------------------------------------
 
-  void _showHoldDialog(BuildContext context, WidgetRef ref, db.Order order) {
-    final controller =
-        TextEditingController(text: order.holdLabel ?? '');
-    showDialog<void>(
+  Future<void> _showHoldDialog(
+      BuildContext context, WidgetRef ref, db.Order order) async {
+    final result = await showDialog<String>(
       context: context,
-      builder: (dialogCtx) {
-        var isSaving = false;
-        return StatefulBuilder(
-          builder: (dialogCtx, setState) => AlertDialog(
-            title: const Text('掛單／改名'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: '桌號／備註',
-                hintText: '例如：1號桌、外帶王先生',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
-                child: const Text('取消'),
-              ),
-              FilledButton(
-                onPressed: isSaving
-                    ? null
-                    : () async {
-                        final label = controller.text.trim();
-                        setState(() => isSaving = true);
-                        try {
-                          await ref
-                              .read(cashierRepositoryProvider)
-                              .setHoldLabel(
-                                  order.id, label.isEmpty ? null : label);
-                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('儲存失敗：$e')),
-                            );
-                          }
-                          if (dialogCtx.mounted) {
-                            setState(() => isSaving = false);
-                          }
-                        }
-                      },
-                child: isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('儲存'),
-              ),
-            ],
-          ),
-        );
-      },
-    ).whenComplete(() => controller.dispose());
+      builder: (ctx) => _HoldLabelDialog(order: order),
+    );
+
+    // null means the user cancelled – do nothing.
+    if (result == null) return;
+    if (!context.mounted) return;
+
+    try {
+      await ref
+          .read(cashierRepositoryProvider)
+          .setHoldLabel(order.id, result.isEmpty ? null : result);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('儲存失敗：$e')));
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -695,6 +656,68 @@ class _CashierPageState extends ConsumerState<CashierPage> {
         _selectedTable = null;
       });
     }
+  }
+}
+
+// =============================================================================
+// Hold / rename dialog
+// =============================================================================
+
+/// A dialog that lets the cashier set or rename the hold label for an order.
+///
+/// Returns the trimmed label string on Save (may be empty to clear the label),
+/// or null if the user cancelled or dismissed the dialog.
+class _HoldLabelDialog extends StatefulWidget {
+  const _HoldLabelDialog({required this.order});
+
+  final db.Order order;
+
+  @override
+  State<_HoldLabelDialog> createState() => _HoldLabelDialogState();
+}
+
+class _HoldLabelDialogState extends State<_HoldLabelDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.order.holdLabel ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() => Navigator.pop(context, _controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('掛單／改名'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: '桌號／備註',
+          hintText: '例如：1號桌、外帶王先生',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('儲存'),
+        ),
+      ],
+    );
   }
 }
 
